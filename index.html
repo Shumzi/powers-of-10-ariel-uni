@@ -33,11 +33,11 @@
   .hidden { opacity: 0; pointer-events: none; }
   #outline {
     position: absolute;
-    border: 2px solid #00ff88;
-    box-shadow: 0 0 6px #00ff88;
+    border: 2px solid;
+    box-shadow: 0 0 6px;
     transform-origin: center center;
     pointer-events: none;
-    transition: transform 0.1s linear;
+    transition: transform 0.1s linear, border-color 0.3s ease, box-shadow 0.3s ease;
   }
   #caption {
     margin-top: 10px;
@@ -49,29 +49,26 @@
 <body>
 
 <div id="container">
-  <img id="img1" src="img1.png" alt="">
-  <img id="img2" src="img2.png" class="hidden" alt="">
-  <img id="img3" src="img3.png" class="hidden" alt="">
-  <img id="img4" src="img4.png" class="hidden" alt="">
-  <img id="img5" src="img5.png" class="hidden" alt="">
-  <img id="img6" src="img6.png" class="hidden" alt="">
-  <img id="img7" src="img7.png" class="hidden" alt="">
-
   <div id="outline"></div>
+  <!-- Images will be inserted here by JavaScript -->
 </div>
 <div id="caption">Description for Image 1</div>
 <p style="opacity:0.6;">⬆ Zoom In &nbsp;&nbsp; ⬇ Zoom Out</p>
 
+<script src="config.js"></script>
 <script>
-const images = [
-  {id: 'img1', caption: 'Description for Image 1', nextRect: [0.3, 0.3, 0.4, 0.4]}, // x,y,w,h in relative units
-  {id: 'img2', caption: 'Description for Image 2', nextRect: [0.1, 0.1, 0.2, 0.3]}, // no further zoom
-  {id: 'img3', caption: 'Description for Image 3', nextRect: [0.3, 0.3, 0.4, 0.4]}, // x,y,w,h in relative units
-  {id: 'img4', caption: 'Description for Image 4', nextRect: [0.3, 0.3, 0.4, 0.4]}, // no further zoom
-  {id: 'img5', caption: 'Description for Image 5', nextRect: [0.3, 0.3, 0.4, 0.4]}, // x,y,w,h in relative units
-  {id: 'img6', caption: 'Description for Image 6', nextRect: [0.3, 0.3, 0.4, 0.4]}, // no further zoom
-  {id: 'img7', caption: 'Description for Image 7', nextRect: null} // x,y,w,h in relative units
-];
+// Create image elements from config
+const container = document.getElementById('container');
+CONFIG.images.forEach((imgConfig, index) => {
+    const img = document.createElement('img');
+    img.id = imgConfig.id;
+    img.src = imgConfig.src;
+    img.alt = '';
+    if (index > 0) img.classList.add('hidden');
+    container.insertBefore(img, document.getElementById('outline'));
+});
+
+const images = CONFIG.images;
 
 let current = 0;
 let scale = 1;
@@ -82,19 +79,55 @@ const maxScale = 2;
 const outline = document.getElementById('outline');
 const caption = document.getElementById('caption');
 
-function setOutline(rect) {
+function pixelToRelative(pixelRect, img) {
+  if (!pixelRect) return null;
+  const [x, y, w, h] = pixelRect;
+  // Use the actual image dimensions
+  return [
+    x / img.naturalWidth,
+    y / img.naturalHeight,
+    w / img.naturalWidth,
+    h / img.naturalHeight
+  ];
+}
+
+function getRect(imageConfig) {
+  // Prefer pixel coordinates if provided, otherwise use relative coordinates
+  if (imageConfig.nextPixelRect) {
+    const img = document.getElementById(imageConfig.id);
+    // Wait for image to load before converting coordinates
+    if (img.complete) {
+      return pixelToRelative(imageConfig.nextPixelRect, img);
+    }
+    // If image isn't loaded yet, return null and update later
+    img.addEventListener('load', () => {
+      // Update outline once image loads
+      if (current === images.indexOf(imageConfig)) {
+        setOutline(getRect(imageConfig), imageConfig.outlineColor);
+      }
+    }, { once: true });
+    return null;
+  }
+  return imageConfig.nextRect;
+}
+
+function setOutline(rect, outlineColor) {
   if (!rect) { outline.style.display = 'none'; return; }
   outline.style.display = 'block';
   outline.style.left = (rect[0]*100) + '%';
   outline.style.top = (rect[1]*100) + '%';
   outline.style.width = (rect[2]*100) + '%';
   outline.style.height = (rect[3]*100) + '%';
+  
+  const color = outlineColor || CONFIG.defaultOutlineColor;
+  outline.style.borderColor = color;
+  outline.style.boxShadow = `0 0 6px ${color}`;
 }
 
 function updateZoom() {
   const img = document.getElementById(images[current].id);
 
-  const rect = images[current].nextRect;
+  const rect = getRect(images[current]);
   if (rect) {
     // rect = [x, y, w, h] in fractions of image size
     const cx = rect[0] + rect[2] / 2;
@@ -122,7 +155,7 @@ function swapImage(forward) {
   const newImg = document.getElementById(images[current].id);
   newImg.classList.remove('hidden');
   caption.textContent = images[current].caption;
-  setOutline(images[current].nextRect);
+  setOutline(getRect(images[current]), images[current].outlineColor);
 
   // Continuous zoom handling
   if (forward) {
@@ -157,7 +190,7 @@ document.addEventListener('keydown', e => {
   }
 });
 
-setOutline(images[0].nextRect);
+setOutline(getRect(images[0]), images[0].outlineColor);
 updateZoom();
 </script>
 
