@@ -4,6 +4,7 @@
     {
       "id": "img1",
       "src": "https://raw.githubusercontent.com/Shumzi/powers-of-10-ariel-uni/refs/heads/main/sample%20photos/img1.png",
+      "bg": "bg1.jpg",
       "caption": "Description for Image 1",
       "nextPixelRect": [
         151,
@@ -22,6 +23,7 @@
         0.2,
         0.3
       ],
+      "bg": "bg2.jpg",
       "outlineColor": "#ff0000ff"
     },
     {
@@ -34,12 +36,14 @@
         0.4,
         0.4
       ],
+      "bg": "bg3.jpg",
       "outlineColor": "#000000ff"
     },
     {
       "id": "img4",
       "src": "https://raw.githubusercontent.com/Shumzi/powers-of-10-ariel-uni/refs/heads/main/sample%20photos/img4.png",
       "caption": "Description for Image 4",
+      "bg": "bg4.jpg",
       "nextRect": [
         0.3,
         0.3,
@@ -51,6 +55,7 @@
       "id": "img5",
       "src": "https://raw.githubusercontent.com/Shumzi/powers-of-10-ariel-uni/refs/heads/main/sample%20photos/img5.png",
       "caption": "Description for Image 5",
+      "bg": "bg5.jpg",
       "nextRect": [
         0.3,
         0.3,
@@ -63,6 +68,7 @@
       "id": "img6",
       "src": "https://raw.githubusercontent.com/Shumzi/powers-of-10-ariel-uni/refs/heads/main/sample%20photos/img6.png",
       "caption": "Description for Image 6",
+      "bg": "bg6.jpg",
       "nextRect": [
         0.3,
         0.3,
@@ -75,6 +81,7 @@
       "id": "img7",
       "src": "https://raw.githubusercontent.com/Shumzi/powers-of-10-ariel-uni/refs/heads/main/sample%20photos/img7.png",
       "caption": "Description for Image 7",
+      "bg": "bg7.jpg",
       "nextRect": null,
       "outlineColor": "#00ff88"
     }
