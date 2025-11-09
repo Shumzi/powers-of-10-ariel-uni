@@ -2,7 +2,6 @@ import pygame
 import json
 import os
 from urllib.parse import unquote
-import math
 
 def ease_in_out_cubic(x):
     if x < 0.5:
