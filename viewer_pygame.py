@@ -30,9 +30,9 @@ class ZoomViewer:
             
         # Initialize variables
         self.current_index = 0
+        
         self.scale = 1.0
         self.min_scale = 1.0
-        self.max_scale = 2.0 # todo: adjust based on config
         
         # Animation properties
         self.animation_duration = 300  # milliseconds
@@ -76,15 +76,30 @@ class ZoomViewer:
                 'original': original,
                 'surface': scaled,
                 'scale': scale,
-                'bg': bg
+                'bg': bg,
             })
+
+            # Calculate max scale based on the rectangle dimensions
+            self.current_img = self.images[-1]  # Set the current image temporarily
+            rect = self.get_rect(img_config)
+            max_scale = 1.0
+            if rect:
+                # Use the first dimension (width) of the rectangle to determine zoom scale
+                # This ensures the zoomed view matches the rectangle's width
+                rect_width = rect[2] if isinstance(rect[2], float) else rect[2] / original.get_width()
+                rect_height = rect[3] if isinstance(rect[3], float) else rect[3] / original.get_height()
+                max_scale = max(1.0 / min(rect_width, rect_height), 1.0)  # Ensure at least 1.0
+            self.images[-1]['max_scale'] = max_scale
+
+        self.current_img = self.images[self.current_index]  # Reset to first image
+
 
     def get_rect(self, img_config):
         # Check for pixel coordinates first
         pixel_rect = img_config.get('nextPixelRect')
         if pixel_rect and len(pixel_rect) == 4:
             px, py, pw, ph = pixel_rect
-            img = self.images[self.current_index]['original']
+            img = self.current_img['original']
             return [px/img.get_width(), py/img.get_height(), 
                    pw/img.get_width(), ph/img.get_height()]
         
@@ -99,50 +114,34 @@ class ZoomViewer:
         # Fill background
         self.screen.fill((17, 17, 17))  # #111111 in RGB
         # Draw background image
-        current_bg = self.images[self.current_index]['bg']
+        current_bg = self.current_img['bg']
         self.screen.blit(current_bg, (0,0))
 
-        current = self.images[self.current_index]
-        img_config = current['config']
+        img_config = self.current_img['config']
         rect = self.get_rect(img_config)
         
         # Get the original surface dimensions
-        img_width = current['surface'].get_width()
-        img_height = current['surface'].get_height()
+        img_width = self.current_img['surface'].get_width()
+        img_height = self.current_img['surface'].get_height()
         
-        if rect and self.scale > 1.0:
+        if rect:
             # Calculate center of the target rectangle
             cx = rect[0] + rect[2]/2
             cy = rect[1] + rect[3]/2
-            
-            # Calculate zoom progress
-            zoom_progress = (self.scale - self.min_scale) / (self.max_scale - self.min_scale)
-            
-            # Interpolate between original position and zoomed position
-            target_x = cx * img_width
-            target_y = cy * img_height
-            current_x = img_width/2 + (target_x - img_width/2) * zoom_progress
-            current_y = img_height/2 + (target_y - img_height/2) * zoom_progress
-            
-            # Calculate the scaled dimensions
-            scaled_width = int(img_width * self.scale)
-            scaled_height = int(img_height * self.scale)
-            
-            # Create scaled surface
-            scaled_surface = pygame.transform.smoothscale(
-                current['surface'], 
-                (scaled_width, scaled_height)
-            )
-            
-            # Calculate position to center the zoomed part
-            x = self.viewport.get_width()/2 - current_x * self.scale
-            y = self.viewport.get_width()/2 - current_y * self.scale
+            # Calculate scaled dimensions
+            scaled_width = img_width * self.scale
+            scaled_height = img_height * self.scale
+            # Calculate position to center the rectangle in the viewport
+            x = self.viewport.get_width()/2 - (cx * scaled_width)
+            y = self.viewport.get_height()/2 - (cy * scaled_height)
+            scaled_surface = pygame.transform.smoothscale(self.current_img['surface'], 
+                                                          (scaled_width, scaled_height))
             
         else:
             # No zoom, just center the image
             x = self.viewport.get_width()/2 - img_width/2
-            y = self.viewport.get_width()/2 - img_height/2
-            scaled_surface = current['surface']
+            y = self.viewport.get_height()/2 - img_height/2
+            scaled_surface = self.current_img['surface']
             scaled_width = img_width
             scaled_height = img_height
         
@@ -198,9 +197,9 @@ class ZoomViewer:
         """
         Initiate zoom animation in the specified direction ('in' or 'out')."""
         if direction == 'in':
-            new_scale = self.scale + (self.max_scale - self.min_scale) * scale_step
+            new_scale = self.scale + (self.current_img['max_scale'] - self.min_scale) * scale_step
         elif direction == 'out':
-            new_scale = self.scale - (self.max_scale - self.min_scale) * scale_step
+            new_scale = self.scale - (self.current_img['max_scale'] - self.min_scale) * scale_step
         self.start_zoom_animation(new_scale)
 
     def handle_step_animation(self):
@@ -228,17 +227,19 @@ class ZoomViewer:
             self.swap_image_if_exceeded_zoom_boundaries()
         
     def swap_image_if_exceeded_zoom_boundaries(self):
-        if self.scale > self.max_scale:
+        if self.scale > self.current_img['max_scale']:
             if self.current_index < len(self.images) - 1: # check if next image exists
                 self.current_index += 1
+                self.current_img = self.images[self.current_index]
                 self.scale = self.min_scale  # Reset scale before next animation
             else:
-                self.scale = self.max_scale  # stay at max scale
+                self.scale = self.min_scale  # stay at min scale, nothing to zoom into anymore.
         elif self.scale < self.min_scale:
             # Check if we can go to previous image
             if self.current_index > 0:
                 self.current_index -= 1
-                self.scale = self.max_scale  # Set to max scale for previous image
+                self.current_img = self.images[self.current_index]
+                self.scale = self.current_img['max_scale']  # Set to max scale for previous image
             else:
                 # If we can't go to previous image, stay at min scale
                 self.scale = self.min_scale
