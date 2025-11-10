@@ -74,7 +74,7 @@ class ZoomViewer:
             self.images.append({
                 'config': img_config,
                 'original': original,
-                'surface': scaled,
+                'surface': scaled, # scaled to fit viewport. all zooming done from this base.
                 'scale': scale,
                 'bg': bg,
             })
@@ -86,9 +86,9 @@ class ZoomViewer:
             if rect:
                 # Use the first dimension (width) of the rectangle to determine zoom scale
                 # This ensures the zoomed view matches the rectangle's width
-                rect_width = rect[2] if isinstance(rect[2], float) else rect[2] / original.get_width()
-                rect_height = rect[3] if isinstance(rect[3], float) else rect[3] / original.get_height()
-                max_scale = max(1.0 / min(rect_width, rect_height), 1.0)  # Ensure at least 1.0
+                width_scale = 1/rect[2] if isinstance(rect[2], float) else original.get_width() / rect[2]
+                height_scale = 1/rect[3] if isinstance(rect[3], float) else original.get_height() / rect[3]
+                max_scale = min(width_scale, height_scale)
             self.images[-1]['max_scale'] = max_scale
 
         self.current_img = self.images[self.current_index]  # Reset to first image
