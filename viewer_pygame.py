@@ -35,7 +35,7 @@ class ZoomViewer:
         self.start_scale = 1.0
         self.animation_start_time = None
         self.is_animating = False
-        self.continuous_zoom_speed = 0.0005  # Speed factor per frame for continuous zooming (at 60 FPS)
+        self.continuous_zoom_rate = 1.0  # Zoom rate: 60% scale change per second (time-based)
         
         # Load images
         self.images = []
@@ -281,11 +281,17 @@ class ZoomViewer:
                 self.is_animating = False
                 animation_progress = 1.0
         
-    def handle_continuous_zoom(self):
+    def handle_continuous_zoom(self, dt):
+        """
+        Handle continuous zoom based on elapsed time (dt in seconds).
+        This makes zoom speed independent of frame rate.
+        """
         keys = pygame.key.get_pressed()
         
-        # Use multiplicative zoom for consistent feel at all zoom levels
-        zoom_factor = 1.01  # 1% change per frame
+        # Calculate zoom factor based on elapsed time
+        # zoom_rate of 0.6 means 60% change per second
+        # Formula: new_scale = current_scale * (1 + rate)^dt
+        zoom_factor = (1 + self.continuous_zoom_rate) ** dt
         
         if keys[pygame.K_UP]:  # Continuous zoom in
             self.scale = self.scale * zoom_factor
@@ -328,7 +334,9 @@ class ZoomViewer:
                 if (key in last_key_time and 
                     current_time - last_key_time[key] > key_delay and 
                     keys[key]):
-                    self.handle_continuous_zoom()
+                    # Get time since last frame for smooth, FPS-independent zoom
+                    dt = self.clock.get_time() / 1000.0
+                    self.handle_continuous_zoom(dt)
 
             # Handle animation
             self.handle_step_animation()
@@ -336,7 +344,7 @@ class ZoomViewer:
             # Draw everything
             self.draw()
             
-            # Control frame rate
+            # Control frame rate and get delta time for next frame
             self.clock.tick(self.FPS)
 
         pygame.quit()
