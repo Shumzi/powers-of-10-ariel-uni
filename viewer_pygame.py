@@ -35,7 +35,7 @@ class ZoomViewer:
         self.start_scale = 1.0
         self.animation_start_time = None
         self.is_animating = False
-        self.continuous_zoom_speed = 0.02  # Speed factor for continuous zooming
+        self.continuous_zoom_speed = 0.0005  # Speed factor per frame for continuous zooming (at 60 FPS)
         
         # Load images
         self.images = []
@@ -216,14 +216,15 @@ class ZoomViewer:
         # Update display
         pygame.display.flip()
 
-    def zoom_image(self, direction, scale_step=0.05):
+    def zoom_image(self, direction, zoom_factor=1.3):
         """
         Initiate zoom animation in the specified direction ('in' or 'out').
+        Uses multiplicative zoom for consistent feel at all zoom levels.
         """
         if direction == 'in':
-            new_scale = self.scale + (self.current_img['max_scale'] - self.min_scale) * scale_step
+            new_scale = self.scale * zoom_factor
         elif direction == 'out':
-            new_scale = self.scale - (self.current_img['max_scale'] - self.min_scale) * scale_step
+            new_scale = self.scale / zoom_factor
         self.start_zoom_animation(new_scale)
 
     def swap_image_if_exceeded_zoom_boundaries(self):
@@ -233,7 +234,7 @@ class ZoomViewer:
                 self.current_img = self.images[self.current_index]
                 self.scale = self.min_scale  # Reset scale before next animation
             else:
-                self.scale = self.min_scale  # stay at min scale, nothing to zoom into anymore.
+                self.scale = 1.0  # stay at min scale, nothing to zoom into anymore.
             return True
         elif self.scale < self.min_scale:
             # Check if we can go to previous image
@@ -245,8 +246,6 @@ class ZoomViewer:
                 # If we can't go to previous image, stay at min scale
                 self.scale = self.min_scale
             return True
-        elif self.current_index == len(self.images) - 1:
-            self.scale = self.min_scale  # stay at min scale, nowhere to zoom into...
         return False
 
     def start_zoom_animation(self, target, start=None):
@@ -285,11 +284,14 @@ class ZoomViewer:
     def handle_continuous_zoom(self):
         keys = pygame.key.get_pressed()
         
+        # Use multiplicative zoom for consistent feel at all zoom levels
+        zoom_factor = 1.01  # 1% change per frame
+        
         if keys[pygame.K_UP]:  # Continuous zoom in
-            self.scale = self.scale + self.continuous_zoom_speed
+            self.scale = self.scale * zoom_factor
 
         elif keys[pygame.K_DOWN]:  # Continuous zoom out
-            self.scale = self.scale - self.continuous_zoom_speed
+            self.scale = self.scale / zoom_factor
 
         swapped = self.swap_image_if_exceeded_zoom_boundaries()
 
