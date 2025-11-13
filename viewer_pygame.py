@@ -3,11 +3,6 @@ import json
 import os
 from urllib.parse import unquote
 
-def ease_in_out_cubic(x):
-    if x < 0.5:
-        return 4 * x * x * x
-    return 1 - pow(-2 * x + 2, 3) / 2
-
 class ZoomViewer:
     def __init__(self):
         pygame.init()
@@ -74,7 +69,7 @@ class ZoomViewer:
             self.images.append({
                 'config': img_config,
                 'original': original,
-                'surface': scaled,
+                'surface': scaled, # scaled to fit viewport. all zooming done from this base.
                 'scale': scale,
                 'bg': bg,
             })
@@ -84,29 +79,99 @@ class ZoomViewer:
             rect = self.get_rect(img_config)
             max_scale = 1.0
             if rect:
-                # Use the first dimension (width) of the rectangle to determine zoom scale
-                # This ensures the zoomed view matches the rectangle's width
-                rect_width = rect[2] if isinstance(rect[2], float) else rect[2] / original.get_width()
-                rect_height = rect[3] if isinstance(rect[3], float) else rect[3] / original.get_height()
-                max_scale = max(1.0 / min(rect_width, rect_height), 1.0)  # Ensure at least 1.0
+                # Calculate max scale so rect fills viewport when positioned at top-left
+                # At max_scale, rect dimensions should equal viewport dimensions
+                width_scale = self.viewport.get_width() / rect.width
+                height_scale = self.viewport.get_height() / rect.height
+                max_scale = min(width_scale, height_scale)
             self.images[-1]['max_scale'] = max_scale
 
         self.current_img = self.images[self.current_index]  # Reset to first image
 
+    def blit_image(self, rect):
+        """
+        Zoom using relative anchor points based on rect position in the image.
+        The anchor point is determined by where the rect is positioned,
+        ensuring the rect stays in view throughout the zoom.
+        """
+
+        # Scale the image
+        image_scaled = pygame.transform.smoothscale_by(self.current_img['surface'], self.scale)
+        # progress from min_scale to max_scale.
+        normalized_zoom = (self.scale - self.min_scale) / (self.current_img['max_scale'] - self.min_scale)
+        
+        img_surface = self.current_img['surface']
+        
+        # Calculate rect's relative position in the image (0 to 1)
+        rect_center_x = rect.x + rect.width / 2
+        rect_center_y = rect.y + rect.height / 2
+        relative_x = rect_center_x / img_surface.get_width()
+        relative_y = rect_center_y / img_surface.get_height()
+        
+        # At zoom start: position image so the relative_x/y point on the image is at relative_x/y in viewport
+        # At zoom end: position image so the relative_x/y point on the RECT is at relative_x/y in viewport
+        
+        # The point at relative position in the image
+        img_point_x = img_surface.get_width() * relative_x
+        img_point_y = img_surface.get_height() * relative_y
+        
+        # The corresponding point at relative position WITHIN the rect
+        # (e.g., if rect is at 10% of image, use 10% point within rect too)
+        rect_local_x = rect.width * relative_x
+        rect_local_y = rect.height * relative_y
+        rect_point_x = rect.x + rect_local_x
+        rect_point_y = rect.y + rect_local_y
+        
+        # Viewport position where we anchor
+        viewport_anchor_x = self.viewport.get_width() * relative_x
+        viewport_anchor_y = self.viewport.get_height() * relative_y
+        
+        # Interpolate between image point and rect point
+        focus_x = img_point_x + (rect_point_x - img_point_x) * normalized_zoom
+        focus_y = img_point_y + (rect_point_y - img_point_y) * normalized_zoom
+        
+        # Position scaled image so that focus point is at viewport anchor
+        image_pos_x = viewport_anchor_x - focus_x * self.scale
+        image_pos_y = viewport_anchor_y - focus_y * self.scale
+
+        # Draw the scaled rect at its position on the scaled image
+        rect_viewport_x = rect.x * self.scale + image_pos_x
+        rect_viewport_y = rect.y * self.scale + image_pos_y
+        rect_viewport_w = rect.width * self.scale
+        rect_viewport_h = rect.height * self.scale
+        
+        # Draw
+        self.viewport.fill((0, 0, 0))
+        self.viewport.blit(image_scaled, (image_pos_x, image_pos_y))
+        pygame.draw.rect(self.viewport, 'red', 
+                        (rect_viewport_x, rect_viewport_y, rect_viewport_w, rect_viewport_h), 2)
+        # Blit to screen occurs in main draw function.
 
     def get_rect(self, img_config):
         # Check for pixel coordinates first
         pixel_rect = img_config.get('nextPixelRect')
         if pixel_rect and len(pixel_rect) == 4:
             px, py, pw, ph = pixel_rect
-            img = self.current_img['original']
-            return [px/img.get_width(), py/img.get_height(), 
-                   pw/img.get_width(), ph/img.get_height()]
+            # Scale from original image coordinates to scaled surface coordinates
+            scale_factor = self.current_img['scale']
+            return pygame.Rect(
+                px * scale_factor,
+                py * scale_factor,
+                pw * scale_factor,
+                ph * scale_factor
+            )
         
         # Fall back to relative coordinates
         rect = img_config.get('nextRect')
         if rect and len(rect) == 4:
-            return rect
+            # Use scaled surface dimensions, not original
+            img = self.current_img['surface']
+            return pygame.Rect(
+                img.get_width() * rect[0],
+                img.get_height() * rect[1],
+                img.get_width() * rect[2],
+                img.get_height() * rect[3]
+            )
             
         return None
 
@@ -125,18 +190,7 @@ class ZoomViewer:
         img_height = self.current_img['surface'].get_height()
         
         if rect:
-            zoom_progress = (self.scale - self.min_scale) / (self.current_img['max_scale'] - self.min_scale)
-            # Calculate center of the target rectangle
-            cx = rect[0] + rect[2]/2
-            cy = rect[1] + rect[3]/2
-            # Calculate scaled dimensions
-            scaled_width = img_width * self.scale
-            scaled_height = img_height * self.scale
-            # Calculate position to center the rectangle in the viewport
-            x = rect[0] * scaled_width * zoom_progress
-            y = rect[1] * scaled_height * zoom_progress
-            scaled_surface = pygame.transform.smoothscale(self.current_img['surface'], 
-                                                          (scaled_width, scaled_height))
+            self.blit_image(rect)
             
         else:
             # No zoom, just center the image
@@ -146,44 +200,12 @@ class ZoomViewer:
             scaled_width = img_width
             scaled_height = img_height
         
-        # Draw the image
-        self.viewport.fill((0, 0, 0))  # Clear canvas
-        self.viewport.blit(scaled_surface, (x,y))
+            # Draw the image
+            self.viewport.fill((0, 0, 0))  # Clear canvas
+            self.viewport.blit(scaled_surface, (x,y))
 
-        # Draw outline if rect exists
-        if rect:
-            # Get outline color
-            default_color = self.config.get('defaultOutlineColor', '#00ff88')
-            outline_color = img_config.get('outlineColor', default_color)
-            
-            # Convert hex color to RGB
-            if outline_color.startswith('#'):
-                outline_color = outline_color[:7]  # Remove alpha if present
-                r = int(outline_color[1:3], 16)
-                g = int(outline_color[3:5], 16)
-                b = int(outline_color[5:7], 16)
-                outline_color = (r, g, b)
-            
-            # Calculate outline rectangle position and size
-            rx, ry, rw, rh = rect
-            outline_x = x + rx * scaled_width
-            outline_y = y + ry * scaled_height
-            outline_w = rw * scaled_width
-            outline_h = rh * scaled_height
-            
-            # Draw rectangle outline
-            pygame.draw.rect(self.viewport, outline_color, 
-                           (outline_x, outline_y, outline_w, outline_h), 2)
-            self.screen.blit(self.viewport, self.viewport_rect)
-        
         # Blit viewport to main screen
         self.screen.blit(self.viewport, self.viewport_rect)
-        
-        # Draw caption
-        caption = img_config['caption']
-        caption_surface = self.font.render(caption, True, (238, 238, 238))
-        caption_x = (self.width - caption_surface.get_width()) / 2
-        self.screen.blit(caption_surface, (caption_x, self.height - 40))
         
         # Draw instructions
         instructions = "⬆ Zoom In    ⬇ Zoom Out"
@@ -196,37 +218,14 @@ class ZoomViewer:
 
     def zoom_image(self, direction, scale_step=0.05):
         """
-        Initiate zoom animation in the specified direction ('in' or 'out')."""
+        Initiate zoom animation in the specified direction ('in' or 'out').
+        """
         if direction == 'in':
             new_scale = self.scale + (self.current_img['max_scale'] - self.min_scale) * scale_step
         elif direction == 'out':
             new_scale = self.scale - (self.current_img['max_scale'] - self.min_scale) * scale_step
         self.start_zoom_animation(new_scale)
 
-    def handle_step_animation(self):
-        """
-        Handle automatic scaling for a single pressed key event.
-        """
-        if not self.is_animating:
-            return
-        
-        current_time = pygame.time.get_ticks()
-        elapsed = current_time - self.animation_start_time
-        progress = min(1.0, elapsed / self.animation_duration)
-        
-        # # Apply easing function
-        # eased_progress = ease_in_out_cubic(progress)
-        
-        # Calculate current scale
-        self.scale = self.start_scale + (self.target_scale - self.start_scale) * progress
-        
-        if progress >= 1.0:
-            # Animation complete
-            self.is_animating = False
-            self.scale = self.target_scale  # Ensure we're exactly at target
-            
-            self.swap_image_if_exceeded_zoom_boundaries()
-        
     def swap_image_if_exceeded_zoom_boundaries(self):
         if self.scale > self.current_img['max_scale']:
             if self.current_index < len(self.images) - 1: # check if next image exists
@@ -235,6 +234,7 @@ class ZoomViewer:
                 self.scale = self.min_scale  # Reset scale before next animation
             else:
                 self.scale = self.min_scale  # stay at min scale, nothing to zoom into anymore.
+            return True
         elif self.scale < self.min_scale:
             # Check if we can go to previous image
             if self.current_index > 0:
@@ -244,8 +244,10 @@ class ZoomViewer:
             else:
                 # If we can't go to previous image, stay at min scale
                 self.scale = self.min_scale
+            return True
         elif self.current_index == len(self.images) - 1:
             self.scale = self.min_scale  # stay at min scale, nowhere to zoom into...
+        return False
 
     def start_zoom_animation(self, target, start=None):
         """
@@ -257,6 +259,29 @@ class ZoomViewer:
         self.target_scale = target
         self.start_scale = start if start is not None else self.scale
 
+    def handle_step_animation(self):
+        """
+        Handle automatic scaling for a single pressed key event.
+        """
+        if not self.is_animating:
+            return
+        
+        current_time = pygame.time.get_ticks()
+        elapsed = current_time - self.animation_start_time
+        animation_progress = min(1.0, elapsed / self.animation_duration)
+        
+        if animation_progress >= 1.0:
+            # Animation complete
+            self.is_animating = False
+            self.scale = self.target_scale  # Ensure we're exactly at target
+            animation_progress = 1.0
+        else:
+            self.scale = self.start_scale + (self.target_scale - self.start_scale) * animation_progress
+            swapped = self.swap_image_if_exceeded_zoom_boundaries()          
+            if swapped:
+                self.is_animating = False
+                animation_progress = 1.0
+        
     def handle_continuous_zoom(self):
         keys = pygame.key.get_pressed()
         
@@ -266,7 +291,7 @@ class ZoomViewer:
         elif keys[pygame.K_DOWN]:  # Continuous zoom out
             self.scale = self.scale - self.continuous_zoom_speed
 
-        self.swap_image_if_exceeded_zoom_boundaries()
+        swapped = self.swap_image_if_exceeded_zoom_boundaries()
 
 
     def run(self):
