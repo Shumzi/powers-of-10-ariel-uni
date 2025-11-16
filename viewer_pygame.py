@@ -444,29 +444,32 @@ class ZoomViewer:
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     running = False
-                elif event.type == pygame.KEYDOWN:
-                    if event.key in [pygame.K_UP, pygame.K_DOWN]:
-                        last_key_time[event.key] = current_time
-                        # Initial key press handles single step zoom
-                        if event.key == pygame.K_UP:  # Zoom in
-                            self.zoom_image('in')                        
+                # Ignore input during transition
+                elif not self.is_transitioning:
+                    if event.type == pygame.KEYDOWN:
+                        if event.key in [pygame.K_UP, pygame.K_DOWN]:
+                            last_key_time[event.key] = current_time
+                            # Initial key press handles single step zoom
+                            if event.key == pygame.K_UP:  # Zoom in
+                                self.zoom_image('in')                        
 
-                        elif event.key == pygame.K_DOWN:  # Zoom out
-                            self.zoom_image('out')
-                
-                elif event.type == pygame.KEYUP:
-                    if event.key in last_key_time:
-                        del last_key_time[event.key]
+                            elif event.key == pygame.K_DOWN:  # Zoom out
+                                self.zoom_image('out')
+                    
+                    elif event.type == pygame.KEYUP:
+                        if event.key in last_key_time:
+                            del last_key_time[event.key]
             
-            # Handle continuous zoom after initial delay
-            keys = pygame.key.get_pressed()
-            for key in [pygame.K_UP, pygame.K_DOWN]:
-                if (key in last_key_time and 
-                    current_time - last_key_time[key] > key_delay and 
-                    keys[key]):
-                    # Get time since last frame for smooth, FPS-independent zoom
-                    dt = self.clock.get_time() / 1000.0
-                    self.handle_continuous_zoom(dt)
+            # Handle continuous zoom after initial delay (only if not transitioning)
+            if not self.is_transitioning:
+                keys = pygame.key.get_pressed()
+                for key in [pygame.K_UP, pygame.K_DOWN]:
+                    if (key in last_key_time and 
+                        current_time - last_key_time[key] > key_delay and 
+                        keys[key]):
+                        # Get time since last frame for smooth, FPS-independent zoom
+                        dt = self.clock.get_time() / 1000.0
+                        self.handle_continuous_zoom(dt)
 
             # Handle animations
             self.handle_step_animation()

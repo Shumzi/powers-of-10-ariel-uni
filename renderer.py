@@ -1,0 +1,168 @@
+"""
+Renderer - Handles all drawing operations
+"""
+import pygame
+
+
+class Renderer:
+    """Responsible for rendering images, transitions, and UI"""
+    
+    def __init__(self, screen, viewport_dims, viewport_rect, font):
+        self.screen = screen
+        self.viewport_dims = viewport_dims
+        self.viewport_rect = viewport_rect
+        self.viewport = pygame.Surface(viewport_dims)
+        self.font = font
+    
+    def draw_frame(self, image_manager, zoom_controller, transition_manager):
+        """Draw the complete frame"""
+        current_img = image_manager.get_current_image()
+        
+        # Fill background
+        self.screen.fill((17, 17, 17))
+        self.screen.blit(current_img.bg, (0, 0))
+        
+        # Draw either transition or normal image
+        if transition_manager.is_active():
+            self._draw_transition(transition_manager)
+        else:
+            rect = image_manager.get_rect(current_img)
+            if rect:
+                self._draw_zoomed_image(current_img, rect, zoom_controller)
+            else:
+                self._draw_centered_image(current_img)
+        
+        # Blit viewport to main screen
+        self.screen.blit(self.viewport, self.viewport_rect)
+        
+        # Draw instructions
+        self._draw_instructions()
+        
+        # Update display
+        pygame.display.flip()
+    
+    def _draw_transition(self, transition_manager):
+        """Draw transition frame"""
+        self.viewport.fill((0, 0, 0))
+        frame = transition_manager.get_current_frame()
+        if frame:
+            x = (self.viewport_dims[0] - frame.get_width()) / 2
+            y = (self.viewport_dims[1] - frame.get_height()) / 2
+            self.viewport.blit(frame, (x, y))
+        else:
+            print("No frame to draw!")
+    
+    def _draw_centered_image(self, image_data):
+        """Draw image centered in viewport"""
+        img_width = image_data.surface.get_width()
+        img_height = image_data.surface.get_height()
+        x = self.viewport_dims[0] / 2 - img_width / 2
+        y = self.viewport_dims[1] / 2 - img_height / 2
+        
+        self.viewport.fill((0, 0, 0))
+        self.viewport.blit(image_data.surface, (x, y))
+    
+    def _draw_zoomed_image(self, image_data, rect, zoom_controller):
+        """Draw zoomed image with rectangle"""
+        img_surface = image_data.surface
+        scale = zoom_controller.scale
+        normalized_zoom = zoom_controller.get_normalized_zoom()
+        
+        # Calculate rect's relative position
+        rect_center_x = rect.x + rect.width / 2
+        rect_center_y = rect.y + rect.height / 2
+        relative_x = rect_center_x / img_surface.get_width()
+        relative_y = rect_center_y / img_surface.get_height()
+        
+        # Calculate anchor points
+        img_point_x = img_surface.get_width() * relative_x
+        img_point_y = img_surface.get_height() * relative_y
+        
+        rect_local_x = rect.width * relative_x
+        rect_local_y = rect.height * relative_y
+        rect_point_x = rect.x + rect_local_x
+        rect_point_y = rect.y + rect_local_y
+        
+        viewport_anchor_x = self.viewport_dims[0] * relative_x
+        viewport_anchor_y = self.viewport_dims[1] * relative_y
+        
+        # Interpolate focus point
+        focus_x = img_point_x + (rect_point_x - img_point_x) * normalized_zoom
+        focus_y = img_point_y + (rect_point_y - img_point_y) * normalized_zoom
+        
+        # Position image
+        image_pos_x = viewport_anchor_x - focus_x * scale
+        image_pos_y = viewport_anchor_y - focus_y * scale
+        
+        # Scale image (with crop optimization for high zoom)
+        image_scaled, adjusted_pos_x, adjusted_pos_y = self._scale_image_optimized(
+            image_data, scale, image_pos_x, image_pos_y, img_surface
+        )
+        
+        # Calculate rect position in viewport
+        rect_viewport_x = rect.x * scale + image_pos_x
+        rect_viewport_y = rect.y * scale + image_pos_y
+        rect_viewport_w = rect.width * scale
+        rect_viewport_h = rect.height * scale
+        
+        # Draw
+        self.viewport.fill((0, 0, 0))
+        self.viewport.blit(image_scaled, (adjusted_pos_x, adjusted_pos_y))
+        pygame.draw.rect(self.viewport, 'red', 
+                        (rect_viewport_x, rect_viewport_y, rect_viewport_w, rect_viewport_h), 2)
+    
+    def _scale_image_optimized(self, image_data, scale, image_pos_x, image_pos_y, img_surface):
+        """Scale image with crop optimization at high zoom levels"""
+        CROP_THRESHOLD = 1.5
+        
+        if scale < CROP_THRESHOLD:
+            # Low zoom: simple scaling
+            image_scaled = pygame.transform.smoothscale_by(img_surface, scale)
+            return image_scaled, image_pos_x, image_pos_y
+        else:
+            # High zoom: crop then scale for performance
+            visible_left = max(0, -image_pos_x)
+            visible_top = max(0, -image_pos_y)
+            visible_right = min(img_surface.get_width() * scale, 
+                               self.viewport_dims[0] - image_pos_x)
+            visible_bottom = min(img_surface.get_height() * scale,
+                                self.viewport_dims[1] - image_pos_y)
+            
+            original_scale_factor = image_data.scale
+            margin = 2
+            
+            crop_left = (visible_left / scale / original_scale_factor) - margin
+            crop_top = (visible_top / scale / original_scale_factor) - margin
+            crop_right = (visible_right / scale / original_scale_factor) + margin
+            crop_bottom = (visible_bottom / scale / original_scale_factor) + margin
+            
+            original = image_data.original
+            crop_left = max(0, min(int(crop_left), original.get_width()))
+            crop_top = max(0, min(int(crop_top), original.get_height()))
+            crop_right = max(0, min(int(crop_right), original.get_width()))
+            crop_bottom = max(0, min(int(crop_bottom), original.get_height()))
+            
+            crop_width = crop_right - crop_left
+            crop_height = crop_bottom - crop_top
+            
+            if crop_width > 0 and crop_height > 0:
+                cropped = original.subsurface((crop_left, crop_top, crop_width, crop_height))
+                final_width = int(crop_width * original_scale_factor * scale)
+                final_height = int(crop_height * original_scale_factor * scale)
+                
+                if final_width > 0 and final_height > 0:
+                    image_scaled = pygame.transform.smoothscale(cropped, (final_width, final_height))
+                    adjusted_pos_x = image_pos_x + (crop_left * original_scale_factor * scale)
+                    adjusted_pos_y = image_pos_y + (crop_top * original_scale_factor * scale)
+                    return image_scaled, adjusted_pos_x, adjusted_pos_y
+            
+            # Fallback
+            image_scaled = pygame.transform.smoothscale_by(img_surface, scale)
+            return image_scaled, image_pos_x, image_pos_y
+    
+    def _draw_instructions(self):
+        """Draw on-screen instructions"""
+        instructions = "⬆ Zoom In    ⬇ Zoom Out"
+        instr_surface = self.font.render(instructions, True, (153, 153, 153))
+        instr_x = (self.screen.get_width() - instr_surface.get_width()) / 2
+        self.screen.blit(instr_surface, (instr_x, self.screen.get_height() - 20))
