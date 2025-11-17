@@ -3,26 +3,28 @@
   "images": [
     {
       "id": "img1",
-      "src": "sample photos/out.jpg",
+      "src": "sample photos/img1.jpg",
       "bg": "sample bg/bg1.jpg",
       "caption": "Description for Image 1",
       "nextPixelRect": [
-        1970,
-        1675,
-        331,
-        284
-      ]
+        1949,
+        1601,
+        360,
+        360
+      ],
+      "transitionFolder": "sample transitions/1"
     },
     {
       "id": "img2",
-      "src": "sample photos/in.jpg",
+      "src": "sample photos/img2.jpg",
       "caption": "Description for Image 2",
-      "nextRect": [
-        0.1,
-        0.1,
-        0.2,
-        0.3
+      "nextPixelRect": [
+        2795,
+        3716,
+        340,
+        340
       ],
+      "transitionFolder": "sample transitions/2",
       "bg": "sample bg/bg2.jpg",
       "outlineColor": "#ff0000ff"
     },

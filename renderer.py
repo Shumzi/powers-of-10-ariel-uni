@@ -13,8 +13,9 @@ class Renderer:
         self.viewport_rect = viewport_rect
         self.viewport = pygame.Surface(viewport_dims)
         self.font = font
+        self.small_font = pygame.font.SysFont('Consolas', 12)
     
-    def draw_frame(self, image_manager, zoom_controller, transition_manager):
+    def draw_frame(self, image_manager, zoom_controller, transition_manager, fps=0, debug_mode=False, perf_stats=None, avg_frame_time=0):
         """Draw the complete frame"""
         current_img = image_manager.get_current_image()
         
@@ -162,7 +163,58 @@ class Renderer:
     
     def _draw_instructions(self):
         """Draw on-screen instructions"""
-        instructions = "⬆ Zoom In    ⬇ Zoom Out"
+        instructions = "⬆ Zoom In    ⬇ Zoom Out    D: Debug"
         instr_surface = self.font.render(instructions, True, (153, 153, 153))
         instr_x = (self.screen.get_width() - instr_surface.get_width()) / 2
         self.screen.blit(instr_surface, (instr_x, self.screen.get_height() - 20))
+    
+    def _draw_fps(self, fps, debug_mode, perf_stats, avg_frame_time):
+        """Draw FPS counter and performance stats"""
+        # Color code FPS based on performance
+        if fps >= 55:
+            color = (0, 255, 0)  # Green - excellent
+        elif fps >= 45:
+            color = (255, 255, 0)  # Yellow - good
+        elif fps >= 30:
+            color = (255, 165, 0)  # Orange - acceptable
+        else:
+            color = (255, 0, 0)  # Red - poor
+        
+        fps_text = f"FPS: {fps:.1f}"
+        fps_surface = self.font.render(fps_text, True, color)
+        self.screen.blit(fps_surface, (10, 10))
+        
+        if debug_mode and perf_stats:
+            y_offset = 35
+            line_height = 18
+            
+            # Frame time
+            frame_text = f"Frame: {avg_frame_time:.1f}ms"
+            frame_surface = self.small_font.render(frame_text, True, (200, 200, 200))
+            self.screen.blit(frame_surface, (10, y_offset))
+            y_offset += line_height
+            
+            # Component breakdown
+            input_text = f"Input:  {perf_stats['input']:.1f}ms"
+            update_text = f"Update: {perf_stats['update']:.1f}ms"
+            render_text = f"Render: {perf_stats['render']:.1f}ms"
+            
+            input_surface = self.small_font.render(input_text, True, (150, 150, 150))
+            update_surface = self.small_font.render(update_text, True, (150, 150, 150))
+            render_surface = self.small_font.render(render_text, True, (150, 150, 150))
+            
+            self.screen.blit(input_surface, (10, y_offset))
+            y_offset += line_height
+            self.screen.blit(update_surface, (10, y_offset))
+            y_offset += line_height
+            self.screen.blit(render_surface, (10, y_offset))
+            y_offset += line_height
+            
+            # Performance tips for RPi
+            target_frame_time = 1000 / 60  # 16.67ms for 60 FPS
+            if avg_frame_time > target_frame_time:
+                tip = "Tip: Consider lowering resolution"
+                if perf_stats['render'] > 12:
+                    tip = "Tip: Render bottleneck - reduce viewport"
+                tip_surface = self.small_font.render(tip, True, (255, 100, 100))
+                self.screen.blit(tip_surface, (10, y_offset))

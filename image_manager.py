@@ -96,19 +96,34 @@ class ImageManager:
         """Get rect for a specific image"""
         return self._get_rect(image_data.config, image_data.surface, image_data.scale)
     
-    def next_image(self):
-        """Move to next image if available"""
-        if self.current_index < len(self.images) - 1:
+    def set_image(self, index):
+        """Set current image to specific index"""
+        if 0 <= index < len(self.images):
+            self.current_index = index
+    
+    def try_next(self):
+        """Try to move to next image. Returns True if successful."""
+        if self.can_go_next():
             self.current_index += 1
             return True
         return False
     
-    def previous_image(self):
-        """Move to previous image if available"""
-        if self.current_index > 0:
+    def try_previous(self):
+        """Try to move to previous image. Returns True if successful."""
+        if self.can_go_previous():
             self.current_index -= 1
             return True
         return False
+    
+    def next_image(self):
+        """Move to next image if available"""
+        if self.can_go_next():
+            self.current_index += 1
+    
+    def previous_image(self):
+        """Move to previous image if available"""
+        if self.can_go_previous():
+            self.current_index -= 1
     
     def can_go_next(self):
         """Check if can move to next image"""
