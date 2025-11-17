@@ -49,15 +49,28 @@ class ZoomViewer:
         # Clock for frame rate control
         self.clock = pygame.time.Clock()
         self.FPS = 60
+        
+        # Performance monitoring
+        self.debug_mode = False
+        self.frame_times = []
+        self.max_frame_samples = 60
+        self.perf_stats = {
+            'input': 0,
+            'update': 0,
+            'render': 0,
+            'total': 0
+        }
     
     def run(self):
         """Main game loop"""
         running = True
         
         while running:
-            current_time = pygame.time.get_ticks()
+            frame_start = pygame.time.get_ticks()
+            current_time = frame_start
             
             # Process input
+            input_start = pygame.time.get_ticks()
             actions = self.input_handler.process_events(self.transition_manager.is_active())
             
             for action in actions:
@@ -65,8 +78,14 @@ class ZoomViewer:
                     running = False
                 elif action[0] == 'zoom_step':
                     self.zoom_controller.zoom_step(action[1])
+                elif action[0] == 'toggle_debug':
+                    self.debug_mode = not self.debug_mode
+                    print(f"Debug mode: {'ON' if self.debug_mode else 'OFF'}")
+            
+            self.perf_stats['input'] = pygame.time.get_ticks() - input_start
             
             # Check continuous zoom
+            update_start = pygame.time.get_ticks()
             dt = self.clock.get_time() / 1000.0
             continuous_action = self.input_handler.check_continuous_zoom(
                 self.transition_manager.is_active(), dt
@@ -100,8 +119,22 @@ class ZoomViewer:
                 else:
                     self.zoom_controller.reset_to_min()
             
+            self.perf_stats['update'] = pygame.time.get_ticks() - update_start
+            
             # Render
-            self.renderer.draw_frame(self.image_manager, self.zoom_controller, self.transition_manager)
+            render_start = pygame.time.get_ticks()
+            fps = self.clock.get_fps()
+            avg_frame_time = sum(self.frame_times) / len(self.frame_times) if self.frame_times else 0
+            self.renderer.draw_frame(self.image_manager, self.zoom_controller, self.transition_manager, 
+                                    fps, self.debug_mode, self.perf_stats, avg_frame_time)
+            self.perf_stats['render'] = pygame.time.get_ticks() - render_start
+            
+            # Track frame time
+            frame_time = pygame.time.get_ticks() - frame_start
+            self.perf_stats['total'] = frame_time
+            self.frame_times.append(frame_time)
+            if len(self.frame_times) > self.max_frame_samples:
+                self.frame_times.pop(0)
             
             # Control frame rate
             self.clock.tick(self.FPS)

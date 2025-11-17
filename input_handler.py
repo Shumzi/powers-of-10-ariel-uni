@@ -30,6 +30,9 @@ class InputHandler:
                             actions.append(('zoom_step', 'in'))
                         elif event.key == pygame.K_DOWN:
                             actions.append(('zoom_step', 'out'))
+                    
+                    elif event.key == pygame.K_d:
+                        actions.append(('toggle_debug', None))
                 
                 elif event.type == pygame.KEYUP:
                     if event.key in self.last_key_time:

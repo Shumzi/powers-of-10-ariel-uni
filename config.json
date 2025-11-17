@@ -3,19 +3,19 @@
   "images": [
     {
       "id": "img1",
-      "src": "sample photos/out.jpg",
+      "src": "sample photos/img1.png",
       "bg": "sample bg/bg1.jpg",
       "caption": "Description for Image 1",
       "nextPixelRect": [
-        1970,
-        1675,
-        331,
-        284
+        355,
+        277,
+        203,
+        153
       ]
     },
     {
       "id": "img2",
-      "src": "sample photos/in.jpg",
+      "src": "sample photos/img2.png",
       "caption": "Description for Image 2",
       "nextRect": [
         0.1,
