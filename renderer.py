@@ -123,7 +123,9 @@ class Renderer:
         
         if scale < CROP_THRESHOLD:
             # Low zoom: simple scaling
-            image_scaled = pygame.transform.smoothscale_by(img_surface, scale)
+            target_width = max(1, int(img_surface.get_width() * scale))
+            target_height = max(1, int(img_surface.get_height() * scale))
+            image_scaled = pygame.transform.scale(img_surface, (target_width, target_height))
             return image_scaled, image_pos_x, image_pos_y
         else:
             # High zoom: crop then scale for performance
@@ -163,7 +165,9 @@ class Renderer:
                     return image_scaled, adjusted_pos_x, adjusted_pos_y
             
             # Fallback
-            image_scaled = pygame.transform.smoothscale_by(img_surface, scale)
+            target_width = max(1, int(img_surface.get_width() * scale))
+            target_height = max(1, int(img_surface.get_height() * scale))
+            image_scaled = pygame.transform.scale(img_surface, (target_width, target_height))
             return image_scaled, image_pos_x, image_pos_y
     
     def _draw_instructions(self):
