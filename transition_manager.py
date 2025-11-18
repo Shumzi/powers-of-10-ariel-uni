@@ -94,9 +94,6 @@ class TransitionManager:
             self.transition_frame_index = 0
             self.transition_start_time = pygame.time.get_ticks()
             self.transition_direction = direction
-            print(f"Starting transition {idx} ({direction})")
-        else:
-            print(f"Warning: No frames for transition {idx}, skipping animation")
     
     def update(self):
         """Update transition animation and return completion status"""

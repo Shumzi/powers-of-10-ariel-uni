@@ -1,8 +1,26 @@
 """
 Image Manager - Handles loading and managing images with their metadata
 """
+from dataclasses import dataclass
 import pygame
 import os
+
+
+@dataclass
+class RectData:
+    """Lightweight rectangle structure that retains floating point precision"""
+    x: float
+    y: float
+    width: float
+    height: float
+
+    def scaled(self, factor: float) -> "RectData":
+        return RectData(
+            self.x * factor,
+            self.y * factor,
+            self.width * factor,
+            self.height * factor,
+        )
 
 
 class ImageData:
@@ -45,14 +63,15 @@ class ImageManager:
             scaled = pygame.transform.smoothscale(original, new_size)
             
             # Calculate max scale based on rectangle dimensions
-            max_scale = self._calculate_max_scale(img_config, scaled, scale)
+            original_size = (original.get_width(), original.get_height())
+            max_scale = self._calculate_max_scale(img_config, original_size, scale)
             
             image_data = ImageData(img_config, original, scaled, scale, bg, max_scale)
             self.images.append(image_data)
     
-    def _calculate_max_scale(self, img_config, scaled_surface, scale_factor):
+    def _calculate_max_scale(self, img_config, original_size, scale_factor):
         """Calculate maximum zoom level based on rect dimensions"""
-        rect = self._get_rect(img_config, scaled_surface, scale_factor)
+        rect = self._get_rect(img_config, original_size, scale_factor, space='surface')
         max_scale = 1.0
         
         if rect:
@@ -63,38 +82,38 @@ class ImageManager:
         
         return max_scale
     
-    def _get_rect(self, img_config, surface, scale_factor):
-        """Get rect from config (pixel or relative coordinates)"""
-        # Check for pixel coordinates first
+    def _get_rect(self, img_config, original_size, scale_factor, space='surface'):
+        """Get rect from config and convert to requested coordinate space"""
+        rect_data = None
+
+        # Check for pixel coordinates first (original image space)
         pixel_rect = img_config.get('nextPixelRect')
         if pixel_rect and len(pixel_rect) == 4:
-            px, py, pw, ph = pixel_rect
-            return pygame.Rect(
-                px * scale_factor,
-                py * scale_factor,
-                pw * scale_factor,
-                ph * scale_factor
-            )
-        
-        # Fall back to relative coordinates
-        rect = img_config.get('nextRect')
-        if rect and len(rect) == 4:
-            return pygame.Rect(
-                surface.get_width() * rect[0],
-                surface.get_height() * rect[1],
-                surface.get_width() * rect[2],
-                surface.get_height() * rect[3]
-            )
-        
-        return None
+            rect_data = RectData(*(float(value) for value in pixel_rect))
+        else:
+            rect = img_config.get('nextRect')
+            if rect and len(rect) == 4:
+                orig_w, orig_h = original_size
+                rect_data = RectData(
+                    orig_w * float(rect[0]),
+                    orig_h * float(rect[1]),
+                    orig_w * float(rect[2]),
+                    orig_h * float(rect[3])
+                )
+
+        if rect_data and space == 'surface':
+            return rect_data.scaled(scale_factor)
+
+        return rect_data
     
     def get_current_image(self):
         """Get the current image data"""
         return self.images[self.current_index]
     
-    def get_rect(self, image_data):
-        """Get rect for a specific image"""
-        return self._get_rect(image_data.config, image_data.surface, image_data.scale)
+    def get_rect(self, image_data, space='surface'):
+        """Get rect for a specific image in the requested space"""
+        original_size = (image_data.original.get_width(), image_data.original.get_height())
+        return self._get_rect(image_data.config, original_size, image_data.scale, space)
     
     def set_image(self, index):
         """Set current image to specific index"""

@@ -109,8 +109,13 @@ class Renderer:
         # Draw
         self.viewport.fill((0, 0, 0))
         self.viewport.blit(image_scaled, (adjusted_pos_x, adjusted_pos_y))
-        pygame.draw.rect(self.viewport, 'red', 
-                        (rect_viewport_x, rect_viewport_y, rect_viewport_w, rect_viewport_h), 2)
+        outline_rect = pygame.Rect(
+            round(rect_viewport_x),
+            round(rect_viewport_y),
+            round(rect_viewport_w),
+            round(rect_viewport_h)
+        )
+        pygame.draw.rect(self.viewport, 'red', outline_rect, 2)
     
     def _scale_image_optimized(self, image_data, scale, image_pos_x, image_pos_y, img_surface):
         """Scale image with crop optimization at high zoom levels"""
