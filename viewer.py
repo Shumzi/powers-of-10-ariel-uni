@@ -162,6 +162,8 @@ class ZoomViewer:
             # Update state
             self._update_state()
             
+            self.perf_stats['update'] = pygame.time.get_ticks() - update_start
+            
             # Render
             self._render_frame()
             
