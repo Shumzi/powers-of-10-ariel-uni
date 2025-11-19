@@ -38,7 +38,7 @@ class TransitionManager:
                 self.transitions.append(frames)
             else:
                 # No transition for this image - add empty list
-                self.transitions.append([])
+                # self.transitions.append([])
                 if i < len(self.config['images']) - 1:  # Not last image
                     print(f"Warning: No transition folder for image {i}")
         
