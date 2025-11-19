@@ -14,8 +14,8 @@ screen = pygame.display.set_mode((WIDTH, HEIGHT))
 pygame.display.set_caption("Video Scrubber")
 
 # Video paths
-video_path = "sample transitions/non-optimized.mp4"
-reversed_video_path = "sample transitions/non-optimized_reversed.mp4"
+video_path = "/tmp/non-optimized_mjpeg.avi"
+reversed_video_path = "/tmp/non-optimized_reversed_mjpeg.avi"
 
 # Create reversed video if it doesn't exist
 if not os.path.exists(reversed_video_path):
@@ -28,9 +28,29 @@ if not os.path.exists(reversed_video_path):
     ])
     print("Reversed video created!")
 
-# OpenCV video setup
-cap_forward = cv2.VideoCapture(video_path)
-cap_backward = cv2.VideoCapture(reversed_video_path)
+# OpenCV video setup with GStreamer hardware acceleration
+# For Raspberry Pi H.264 hardware decoder
+gst_pipeline_forward = (
+    f'filesrc location="{video_path}" ! '
+    'qtdemux ! h264parse ! '
+    'v4l2h264dec ! videoconvert ! appsink'
+)
+
+gst_pipeline_backward = (
+    f'filesrc location="{reversed_video_path}" ! '
+    'qtdemux ! h264parse ! '
+    'v4l2h264dec ! videoconvert ! appsink'
+)
+
+# Try GStreamer first, fallback to default if not available
+try:
+    cap_forward = cv2.VideoCapture(gst_pipeline_forward, cv2.CAP_GSTREAMER)
+    cap_backward = cv2.VideoCapture(gst_pipeline_backward, cv2.CAP_GSTREAMER)
+    print("✓ Using GStreamer hardware acceleration")
+except:
+    print("⚠ GStreamer not available, using default backend")
+    cap_forward = cv2.VideoCapture(video_path)
+    cap_backward = cv2.VideoCapture(reversed_video_path)
 
 # Get video properties
 fps = cap_forward.get(cv2.CAP_PROP_FPS)
