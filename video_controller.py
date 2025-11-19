@@ -28,40 +28,32 @@ if not os.path.exists(reversed_video_path):
     ])
     print("Reversed video created!")
 
-# OpenCV video setup with GStreamer hardware acceleration
-# For Raspberry Pi - MJPEG pipeline
-gst_pipeline_forward = (
-    f'filesrc location="{video_path}" ! '
-    'avidemux ! jpegdec ! videoconvert ! appsink'
-)
+# OpenCV video setup - try default backend (GStreamer doesn't work on Windows)
+print("Loading videos...")
+cap_forward = cv2.VideoCapture(video_path)
+cap_backward = cv2.VideoCapture(reversed_video_path)
 
-gst_pipeline_backward = (
-    f'filesrc location="{reversed_video_path}" ! '
-    'avidemux ! jpegdec ! videoconvert ! appsink'
-)
+# Verify videos opened successfully
+if not cap_forward.isOpened():
+    print(f"ERROR: Could not open forward video: {video_path}")
+    exit(1)
+if not cap_backward.isOpened():
+    print(f"ERROR: Could not open backward video: {reversed_video_path}")
+    exit(1)
 
-# Try GStreamer first, fallback to default if not available
-try:
-    cap_forward = cv2.VideoCapture(gst_pipeline_forward, cv2.CAP_GSTREAMER)
-    cap_backward = cv2.VideoCapture(gst_pipeline_backward, cv2.CAP_GSTREAMER)
-    if cap_forward.isOpened() and cap_backward.isOpened():
-        print("✓ Using GStreamer hardware acceleration")
-    else:
-        raise Exception("Pipeline opened but not valid")
-except Exception as e:
-    print(f"⚠ GStreamer not available ({e}), using default backend")
-    cap_forward = cv2.VideoCapture(video_path)
-    cap_backward = cv2.VideoCapture(reversed_video_path)
+print("✓ Videos loaded successfully")
 
 # Get video properties
 fps = cap_forward.get(cv2.CAP_PROP_FPS)
 total_frames = int(cap_forward.get(cv2.CAP_PROP_FRAME_COUNT))
 total_frames_backward = int(cap_backward.get(cv2.CAP_PROP_FRAME_COUNT))
 
-print(f"Video loaded:")
+print(f"Video properties:")
 print(f"  Forward: {total_frames} frames @ {fps} FPS")
 print(f"  Backward: {total_frames_backward} frames")
-print(f"  Frame counts match: {total_frames == total_frames_backward}")
+if total_frames != total_frames_backward:
+    print(f"  ⚠ WARNING: Frame count mismatch!")
+print()
 
 # Current playback position (in forward video frame numbers)
 current_frame = 0
