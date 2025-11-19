@@ -121,10 +121,12 @@ while running:
                     is_playing_backward = True
                     is_playing_forward = False
                     
+                    # Decrement position first
+                    current_frame = max(current_frame - 1, 0)
+                    
                     # Sync backward video to mirrored position
-                    # Calculate BEFORE decrementing current_frame
-                    backward_frame = total_frames - current_frame - 1
-                    backward_frame = max(0, backward_frame)  # Ensure non-negative
+                    # Reversed video: frame 0 of reversed = frame (total-1) of forward
+                    backward_frame = (total_frames - 1) - current_frame
                     
                     t0 = time.perf_counter()
                     cap_backward.set(cv2.CAP_PROP_POS_FRAMES, backward_frame)
@@ -139,7 +141,6 @@ while running:
                     
                     if ret:
                         last_frame = frame
-                        current_frame = max(current_frame - 1, 0)
                     
                     t_end = time.perf_counter()
                     timing['total_ms'] = (t_end - t_start) * 1000
