@@ -14,8 +14,8 @@ screen = pygame.display.set_mode((WIDTH, HEIGHT))
 pygame.display.set_caption("Video Scrubber")
 
 # Video paths
-video_path = "/tmp/non-optimized_mjpeg.avi"
-reversed_video_path = "/tmp/non-optimized_reversed_mjpeg.avi"
+video_path = "sample transitions/non-optimized_mjpeg.avi"
+reversed_video_path = "sample transitions/non-optimized_reversed_mjpeg.avi"
 
 # Create reversed video if it doesn't exist
 if not os.path.exists(reversed_video_path):
@@ -101,14 +101,14 @@ while running:
                     
                     if ret:
                         last_frame = frame
-                        current_frame = min(current_frame + 1, total_frames - 1)
+                        # Don't increment yet - will happen on next loop iteration
                     
                     t_end = time.perf_counter()
                     timing['total_ms'] = (t_end - t_start) * 1000
                     timing_log.append(timing)
                     
                     print(f"\n▶ UP pressed: {timing['total_ms']:.2f}ms total")
-                    print(f"  - Seek to frame {current_frame-1}: {timing['stages']['seek']:.2f}ms")
+                    print(f"  - Seek to frame {current_frame}: {timing['stages']['seek']:.2f}ms")
                     print(f"  - Read frame: {timing['stages']['read_frame']:.2f}ms")
                     
             elif event.key == pygame.K_DOWN:
@@ -120,9 +120,6 @@ while running:
                 if not is_playing_backward:
                     is_playing_backward = True
                     is_playing_forward = False
-                    
-                    # Decrement position first
-                    current_frame = max(current_frame - 1, 0)
                     
                     # Sync backward video to mirrored position
                     # Reversed video: frame 0 of reversed = frame (total-1) of forward
@@ -141,13 +138,14 @@ while running:
                     
                     if ret:
                         last_frame = frame
+                        # Don't decrement yet - will happen on next loop iteration
                     
                     t_end = time.perf_counter()
                     timing['total_ms'] = (t_end - t_start) * 1000
                     timing_log.append(timing)
                     
                     print(f"\n▼ DOWN pressed: {timing['total_ms']:.2f}ms total")
-                    print(f"  - Seek to frame {backward_frame}: {timing['stages']['seek']:.2f}ms")
+                    print(f"  - Seek to backward frame {backward_frame}: {timing['stages']['seek']:.2f}ms")
                     print(f"  - Read frame: {timing['stages']['read_frame']:.2f}ms")
         elif event.type == pygame.KEYUP:
             if event.key == pygame.K_UP:
