@@ -4,6 +4,7 @@ import numpy as np
 import os
 import subprocess
 import time
+import platform
 
 # Initialize Pygame
 pygame.init()
@@ -28,10 +29,54 @@ if not os.path.exists(reversed_video_path):
     ])
     print("Reversed video created!")
 
-# OpenCV video setup - try default backend (GStreamer doesn't work on Windows)
+# OpenCV video setup
 print("Loading videos...")
-cap_forward = cv2.VideoCapture(video_path)
-cap_backward = cv2.VideoCapture(reversed_video_path)
+
+# Try GStreamer on Linux/Pi for hardware acceleration, fallback to default
+use_gstreamer = platform.system() == 'Linux'
+
+if use_gstreamer:
+    print("Attempting GStreamer hardware acceleration...")
+    # Convert Windows-style paths to Linux if needed
+    forward_path = video_path.replace('\\', '/')
+    backward_path = reversed_video_path.replace('\\', '/')
+    
+    # GStreamer pipeline for MJPEG
+    gst_forward = (
+        f'filesrc location="{forward_path}" ! '
+        'avidemux ! jpegdec ! videoconvert ! appsink'
+    )
+    gst_backward = (
+        f'filesrc location="{backward_path}" ! '
+        'avidemux ! jpegdec ! videoconvert ! appsink'
+    )
+    
+    cap_forward = cv2.VideoCapture(gst_forward, cv2.CAP_GSTREAMER)
+    cap_backward = cv2.VideoCapture(gst_backward, cv2.CAP_GSTREAMER)
+    
+    # Check if GStreamer worked
+    if cap_forward.isOpened() and cap_backward.isOpened():
+        # Verify we can actually get properties
+        test_fps = cap_forward.get(cv2.CAP_PROP_FPS)
+        test_frames = cap_forward.get(cv2.CAP_PROP_FRAME_COUNT)
+        if test_fps > 0 and test_frames > 0:
+            print("✓ GStreamer hardware acceleration enabled")
+        else:
+            print("⚠ GStreamer opened but can't read properties, falling back...")
+            use_gstreamer = False
+            cap_forward.release()
+            cap_backward.release()
+    else:
+        print("⚠ GStreamer failed to open, falling back to default backend")
+        use_gstreamer = False
+        cap_forward.release()
+        cap_backward.release()
+
+# Fallback to default backend
+if not use_gstreamer:
+    print("Using default OpenCV backend...")
+    cap_forward = cv2.VideoCapture(video_path)
+    cap_backward = cv2.VideoCapture(reversed_video_path)
 
 # Verify videos opened successfully
 if not cap_forward.isOpened():
@@ -53,6 +98,9 @@ print(f"  Forward: {total_frames} frames @ {fps} FPS")
 print(f"  Backward: {total_frames_backward} frames")
 if total_frames != total_frames_backward:
     print(f"  ⚠ WARNING: Frame count mismatch!")
+if total_frames <= 0:
+    print(f"  ⚠ ERROR: Invalid frame count! Video backend may not support this format.")
+    exit(1)
 print()
 
 # Current playback position (in forward video frame numbers)
