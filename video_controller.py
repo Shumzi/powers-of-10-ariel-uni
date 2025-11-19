@@ -14,8 +14,8 @@ screen = pygame.display.set_mode((WIDTH, HEIGHT))
 pygame.display.set_caption("Video Scrubber")
 
 # Video paths
-video_path = "sample transitions/non-optimized_mjpeg.avi"
-reversed_video_path = "sample transitions/non-optimized_reversed_mjpeg.avi"
+video_path = "/tmp/non-optimized_mjpeg.avi"
+reversed_video_path = "/tmp/non-optimized_reversed_mjpeg.avi"
 
 # Create reversed video if it doesn't exist
 if not os.path.exists(reversed_video_path):
@@ -56,6 +56,12 @@ except Exception as e:
 # Get video properties
 fps = cap_forward.get(cv2.CAP_PROP_FPS)
 total_frames = int(cap_forward.get(cv2.CAP_PROP_FRAME_COUNT))
+total_frames_backward = int(cap_backward.get(cv2.CAP_PROP_FRAME_COUNT))
+
+print(f"Video loaded:")
+print(f"  Forward: {total_frames} frames @ {fps} FPS")
+print(f"  Backward: {total_frames_backward} frames")
+print(f"  Frame counts match: {total_frames == total_frames_backward}")
 
 # Current playback position (in forward video frame numbers)
 current_frame = 0
@@ -124,6 +130,8 @@ while running:
                     # Sync backward video to mirrored position
                     # Reversed video: frame 0 of reversed = frame (total-1) of forward
                     backward_frame = (total_frames - 1) - current_frame
+                    
+                    print(f"  DEBUG: current_frame={current_frame}, total_frames={total_frames}, backward_frame={backward_frame}")
                     
                     t0 = time.perf_counter()
                     cap_backward.set(cv2.CAP_PROP_POS_FRAMES, backward_frame)
