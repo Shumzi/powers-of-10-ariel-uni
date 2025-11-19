@@ -44,40 +44,56 @@ else:
 # Test 2: GStreamer backend
 print("\n2. Testing GSTREAMER backend...")
 
-# GStreamer pipeline for MJPEG AVI
-gst_pipeline = (
-    f'filesrc location="{video_path}" ! '
-    'avidemux ! jpegdec ! videoconvert ! appsink'
-)
+# Try multiple pipeline variations
+pipelines = [
+    ("MJPEG with avidemux", 
+     f'filesrc location="{video_path}" ! avidemux ! jpegdec ! videoconvert ! appsink'),
+    
+    ("MJPEG with decodebin (auto)", 
+     f'filesrc location="{video_path}" ! decodebin ! videoconvert ! appsink'),
+    
+    ("Direct playback", 
+     f'playbin uri=file://{video_path}'),
+    
+    ("MJPEG with avdemux_avi", 
+     f'filesrc location="{video_path}" ! avdemux_avi ! jpegdec ! videoconvert ! appsink'),
+]
 
-print(f"Pipeline: {gst_pipeline}")
+working_pipeline = None
 
-cap_gst = cv2.VideoCapture(gst_pipeline, cv2.CAP_GSTREAMER)
-
-if cap_gst.isOpened():
-    print("✓ GStreamer pipeline opened")
+for name, gst_pipeline in pipelines:
+    print(f"\nTrying: {name}")
+    print(f"  Pipeline: {gst_pipeline}")
     
-    fps = cap_gst.get(cv2.CAP_PROP_FPS)
-    frames = cap_gst.get(cv2.CAP_PROP_FRAME_COUNT)
-    width = cap_gst.get(cv2.CAP_PROP_FRAME_WIDTH)
-    height = cap_gst.get(cv2.CAP_PROP_FRAME_HEIGHT)
+    cap_gst = cv2.VideoCapture(gst_pipeline, cv2.CAP_GSTREAMER)
     
-    print(f"  FPS: {fps}")
-    print(f"  Frames: {frames}")
-    print(f"  Size: {width}x{height}")
-    
-    if frames <= 0:
-        print(f"  ⚠ WARNING: Frame count is {frames} (GStreamer can't determine length)")
-        print(f"  This is NORMAL for some containers. Seeking may still work.")
-    
-    # Try reading a frame
-    ret, frame = cap_gst.read()
-    if ret:
-        print(f"  ✓ Successfully read frame: {frame.shape}")
+    if cap_gst.isOpened():
+        print("  ✓ Pipeline opened")
+        
+        # Try reading a frame to verify it actually works
+        ret, frame = cap_gst.read()
+        if ret:
+            fps = cap_gst.get(cv2.CAP_PROP_FPS)
+            frames = cap_gst.get(cv2.CAP_PROP_FRAME_COUNT)
+            
+            print(f"  ✓ Successfully read frame: {frame.shape}")
+            print(f"    FPS: {fps}")
+            print(f"    Frames: {frames}")
+            
+            working_pipeline = (name, gst_pipeline, cap_gst)
+            break
+        else:
+            print(f"  ✗ Opened but failed to read frame")
+            cap_gst.release()
     else:
-        print(f"  ✗ Failed to read frame")
+        print(f"  ✗ Failed to open")
+
+if working_pipeline:
+    name, pipeline, cap_gst = working_pipeline
+    print(f"\n✓ WORKING PIPELINE FOUND: {name}")
+    print(f"  Use this: {pipeline}")
     
-    # Try seeking
+    # Test seeking
     print("\n  Testing seeking...")
     seek_result = cap_gst.set(cv2.CAP_PROP_POS_FRAMES, 10)
     print(f"  Seek to frame 10: {seek_result}")
@@ -91,11 +107,7 @@ if cap_gst.isOpened():
     
     cap_gst.release()
 else:
-    print("✗ GStreamer pipeline FAILED to open")
-    print("\nPossible issues:")
-    print("  1. GStreamer plugins missing: sudo apt-get install gstreamer1.0-plugins-good")
-    print("  2. OpenCV not built with GStreamer: rebuild opencv with -D WITH_GSTREAMER=ON")
-    print("  3. File path is wrong")
+    print("\n✗ NO WORKING GSTREAMER PIPELINE FOUND")
 
 # Test 3: Check OpenCV build info
 print("\n3. Checking OpenCV GStreamer support...")
