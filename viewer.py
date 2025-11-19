@@ -5,6 +5,7 @@ Main application that coordinates all components
 import pygame
 import json
 from image_manager import ImageManager
+from tile_image_manager import TileImageManager
 from zoom_controller import ZoomController
 from transition_manager import TransitionManager
 from renderer import Renderer
@@ -34,7 +35,15 @@ class ZoomViewer:
             self.config = json.load(f)
         
         # Initialize components
-        self.image_manager = ImageManager(self.config, self.viewport_dims)
+        # Use TileImageManager if tile caching is enabled, otherwise use standard ImageManager
+        use_tiles = self.config.get('use_tile_cache', False)
+        if use_tiles:
+            print("Using tile-based image manager for optimized zoom performance")
+            self.image_manager = TileImageManager(self.config, self.viewport_dims)
+        else:
+            print("Using standard image manager")
+            self.image_manager = ImageManager(self.config, self.viewport_dims)
+        
         self.image_manager.load_images()
         
         self.zoom_controller = ZoomController()

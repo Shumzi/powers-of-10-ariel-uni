@@ -118,7 +118,13 @@ class Renderer:
         pygame.draw.rect(self.viewport, 'red', outline_rect, 2)
     
     def _scale_image_optimized(self, image_data, scale, image_pos_x, image_pos_y, img_surface):
-        """Scale image with crop optimization at high zoom levels"""
+        """Scale image with crop optimization at high zoom levels or tile pyramid if available"""
+        
+        # Check if tile pyramid is available (TileImageData has pyramid attribute)
+        if hasattr(image_data, 'pyramid') and image_data.pyramid and image_data.pyramid.has_level(scale):
+            return self._scale_with_tiles(image_data, scale, image_pos_x, image_pos_y)
+        
+        # Fallback to traditional crop optimization
         CROP_THRESHOLD = 1.5
         
         if scale < CROP_THRESHOLD:
@@ -168,6 +174,46 @@ class Renderer:
             target_width = max(1, int(img_surface.get_width() * scale))
             target_height = max(1, int(img_surface.get_height() * scale))
             image_scaled = pygame.transform.scale(img_surface, (target_width, target_height))
+            return image_scaled, image_pos_x, image_pos_y
+    
+    def _scale_with_tiles(self, image_data, scale, image_pos_x, image_pos_y):
+        """Use tile pyramid for optimized scaling"""
+        # Calculate visible region in base-scaled coordinates
+        visible_left = max(0, -image_pos_x)
+        visible_top = max(0, -image_pos_y)
+        visible_right = min(image_data.surface.get_width() * scale, 
+                           self.viewport_dims[0] - image_pos_x)
+        visible_bottom = min(image_data.surface.get_height() * scale,
+                            self.viewport_dims[1] - image_pos_y)
+        
+        # Only crop if zoomed in enough (similar to existing logic)
+        if scale >= 1.5:
+            # Calculate crop rect in base surface coordinates
+            crop_x = visible_left / scale
+            crop_y = visible_top / scale
+            crop_w = (visible_right - visible_left) / scale
+            crop_h = (visible_bottom - visible_top) / scale
+            
+            # Add margin for smooth panning
+            margin = 10
+            crop_rect = pygame.Rect(
+                max(0, crop_x - margin),
+                max(0, crop_y - margin),
+                min(crop_w + 2 * margin, image_data.surface.get_width()),
+                min(crop_h + 2 * margin, image_data.surface.get_height())
+            )
+            
+            # Get scaled surface from tile pyramid
+            image_scaled, offset = image_data.pyramid.get_scaled_surface(scale, crop_rect)
+            
+            # Adjust position to account for crop
+            adjusted_pos_x = image_pos_x + crop_rect.x * scale
+            adjusted_pos_y = image_pos_y + crop_rect.y * scale
+            
+            return image_scaled, adjusted_pos_x, adjusted_pos_y
+        else:
+            # Low zoom: use full image from pyramid
+            image_scaled, _ = image_data.pyramid.get_scaled_surface(scale, None)
             return image_scaled, image_pos_x, image_pos_y
     
     def _draw_instructions(self):
