@@ -3,6 +3,7 @@ import cv2
 import numpy as np
 import os
 import subprocess
+import time
 
 # Initialize Pygame
 pygame.init()
@@ -43,6 +44,9 @@ last_frame = None
 is_playing_forward = False
 is_playing_backward = False
 
+# Performance tracking
+timing_log = []
+
 # Main loop
 clock = pygame.time.Clock()
 running = True
@@ -53,30 +57,74 @@ while running:
             running = False
         elif event.type == pygame.KEYDOWN:
             if event.key == pygame.K_UP:
+                # Start timing
+                t_start = time.perf_counter()
+                timing = {'action': 'UP_KEY_PRESS', 'stages': {}}
+                
                 # Switch to forward playback
                 if not is_playing_forward:
                     is_playing_forward = True
                     is_playing_backward = False
+                    
+                    t0 = time.perf_counter()
                     # Sync forward video to current position
                     cap_forward.set(cv2.CAP_PROP_POS_FRAMES, current_frame)
+                    t1 = time.perf_counter()
+                    timing['stages']['seek'] = (t1 - t0) * 1000  # ms
+                    
                     # Read first frame immediately
+                    t0 = time.perf_counter()
                     ret, frame = cap_forward.read()
+                    t1 = time.perf_counter()
+                    timing['stages']['read_frame'] = (t1 - t0) * 1000  # ms
+                    
                     if ret:
                         last_frame = frame
                         current_frame = min(current_frame + 1, total_frames - 1)
+                    
+                    t_end = time.perf_counter()
+                    timing['total_ms'] = (t_end - t_start) * 1000
+                    timing_log.append(timing)
+                    
+                    print(f"\n▶ UP pressed: {timing['total_ms']:.2f}ms total")
+                    print(f"  - Seek to frame {current_frame-1}: {timing['stages']['seek']:.2f}ms")
+                    print(f"  - Read frame: {timing['stages']['read_frame']:.2f}ms")
+                    
             elif event.key == pygame.K_DOWN:
+                # Start timing
+                t_start = time.perf_counter()
+                timing = {'action': 'DOWN_KEY_PRESS', 'stages': {}}
+                
                 # Switch to backward playback
                 if not is_playing_backward:
                     is_playing_backward = True
                     is_playing_forward = False
+                    
                     # Sync backward video to mirrored position
                     backward_frame = total_frames - current_frame
+                    
+                    t0 = time.perf_counter()
                     cap_backward.set(cv2.CAP_PROP_POS_FRAMES, backward_frame)
+                    t1 = time.perf_counter()
+                    timing['stages']['seek'] = (t1 - t0) * 1000  # ms
+                    
                     # Read first frame immediately
+                    t0 = time.perf_counter()
                     ret, frame = cap_backward.read()
+                    t1 = time.perf_counter()
+                    timing['stages']['read_frame'] = (t1 - t0) * 1000  # ms
+                    
                     if ret:
                         last_frame = frame
                         current_frame = max(current_frame - 1, 0)
+                    
+                    t_end = time.perf_counter()
+                    timing['total_ms'] = (t_end - t_start) * 1000
+                    timing_log.append(timing)
+                    
+                    print(f"\n▼ DOWN pressed: {timing['total_ms']:.2f}ms total")
+                    print(f"  - Seek to frame {backward_frame}: {timing['stages']['seek']:.2f}ms")
+                    print(f"  - Read frame: {timing['stages']['read_frame']:.2f}ms")
         elif event.type == pygame.KEYUP:
             if event.key == pygame.K_UP:
                 is_playing_forward = False
@@ -105,13 +153,29 @@ while running:
     
     # Display the last frame
     if last_frame is not None:
+        t0 = time.perf_counter()
         # Convert BGR to RGB
         frame_rgb = cv2.cvtColor(last_frame, cv2.COLOR_BGR2RGB)
+        t1 = time.perf_counter()
+        
         # Convert to pygame surface (transpose for correct orientation)
         frame_surface = pygame.surfarray.make_surface(np.transpose(frame_rgb, (1, 0, 2)))
+        t2 = time.perf_counter()
+        
         # Scale to fit screen
         frame_surface = pygame.transform.scale(frame_surface, (WIDTH, HEIGHT))
+        t3 = time.perf_counter()
+        
         screen.blit(frame_surface, (0, 0))
+        t4 = time.perf_counter()
+        
+        # Track rendering times (only log occasionally to avoid spam)
+        if current_frame % 100 == 0:
+            print(f"\nRender timings at frame {current_frame}:")
+            print(f"  - BGR→RGB: {(t1-t0)*1000:.2f}ms")
+            print(f"  - Make surface: {(t2-t1)*1000:.2f}ms")
+            print(f"  - Scale: {(t3-t2)*1000:.2f}ms")
+            print(f"  - Blit: {(t4-t3)*1000:.2f}ms")
     else:
         screen.fill((0, 0, 0))
     
@@ -137,6 +201,30 @@ while running:
     
     pygame.display.flip()
     clock.tick(int(fps))  # Match video FPS
+
+# Print performance summary before exit
+print("\n" + "="*60)
+print("PERFORMANCE SUMMARY")
+print("="*60)
+if timing_log:
+    seek_times = [t['stages'].get('seek', 0) for t in timing_log]
+    read_times = [t['stages'].get('read_frame', 0) for t in timing_log]
+    total_times = [t['total_ms'] for t in timing_log]
+    
+    print(f"\nKey press events analyzed: {len(timing_log)}")
+    print(f"\nSeek times:")
+    print(f"  Min: {min(seek_times):.2f}ms")
+    print(f"  Max: {max(seek_times):.2f}ms")
+    print(f"  Avg: {sum(seek_times)/len(seek_times):.2f}ms")
+    print(f"\nRead frame times:")
+    print(f"  Min: {min(read_times):.2f}ms")
+    print(f"  Max: {max(read_times):.2f}ms")
+    print(f"  Avg: {sum(read_times)/len(read_times):.2f}ms")
+    print(f"\nTotal key-to-frame times:")
+    print(f"  Min: {min(total_times):.2f}ms")
+    print(f"  Max: {max(total_times):.2f}ms")
+    print(f"  Avg: {sum(total_times)/len(total_times):.2f}ms")
+print("="*60 + "\n")
 
 # Cleanup
 cap_forward.release()
