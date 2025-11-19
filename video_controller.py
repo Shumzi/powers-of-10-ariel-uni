@@ -59,14 +59,24 @@ while running:
                     is_playing_backward = False
                     # Sync forward video to current position
                     cap_forward.set(cv2.CAP_PROP_POS_FRAMES, current_frame)
+                    # Read first frame immediately
+                    ret, frame = cap_forward.read()
+                    if ret:
+                        last_frame = frame
+                        current_frame = min(current_frame + 1, total_frames - 1)
             elif event.key == pygame.K_DOWN:
                 # Switch to backward playback
                 if not is_playing_backward:
                     is_playing_backward = True
                     is_playing_forward = False
                     # Sync backward video to mirrored position
-                    backward_frame = total_frames - current_frame - 1
+                    backward_frame = total_frames - current_frame
                     cap_backward.set(cv2.CAP_PROP_POS_FRAMES, backward_frame)
+                    # Read first frame immediately
+                    ret, frame = cap_backward.read()
+                    if ret:
+                        last_frame = frame
+                        current_frame = max(current_frame - 1, 0)
         elif event.type == pygame.KEYUP:
             if event.key == pygame.K_UP:
                 is_playing_forward = False
