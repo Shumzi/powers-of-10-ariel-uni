@@ -29,26 +29,27 @@ if not os.path.exists(reversed_video_path):
     print("Reversed video created!")
 
 # OpenCV video setup with GStreamer hardware acceleration
-# For Raspberry Pi H.264 hardware decoder
+# For Raspberry Pi - MJPEG pipeline
 gst_pipeline_forward = (
     f'filesrc location="{video_path}" ! '
-    'qtdemux ! h264parse ! '
-    'v4l2h264dec ! videoconvert ! appsink'
+    'avidemux ! jpegdec ! videoconvert ! appsink'
 )
 
 gst_pipeline_backward = (
     f'filesrc location="{reversed_video_path}" ! '
-    'qtdemux ! h264parse ! '
-    'v4l2h264dec ! videoconvert ! appsink'
+    'avidemux ! jpegdec ! videoconvert ! appsink'
 )
 
 # Try GStreamer first, fallback to default if not available
 try:
     cap_forward = cv2.VideoCapture(gst_pipeline_forward, cv2.CAP_GSTREAMER)
     cap_backward = cv2.VideoCapture(gst_pipeline_backward, cv2.CAP_GSTREAMER)
-    print("✓ Using GStreamer hardware acceleration")
-except:
-    print("⚠ GStreamer not available, using default backend")
+    if cap_forward.isOpened() and cap_backward.isOpened():
+        print("✓ Using GStreamer hardware acceleration")
+    else:
+        raise Exception("Pipeline opened but not valid")
+except Exception as e:
+    print(f"⚠ GStreamer not available ({e}), using default backend")
     cap_forward = cv2.VideoCapture(video_path)
     cap_backward = cv2.VideoCapture(reversed_video_path)
 
@@ -121,7 +122,9 @@ while running:
                     is_playing_forward = False
                     
                     # Sync backward video to mirrored position
-                    backward_frame = total_frames - current_frame
+                    # Calculate BEFORE decrementing current_frame
+                    backward_frame = total_frames - current_frame - 1
+                    backward_frame = max(0, backward_frame)  # Ensure non-negative
                     
                     t0 = time.perf_counter()
                     cap_backward.set(cv2.CAP_PROP_POS_FRAMES, backward_frame)
