@@ -22,8 +22,8 @@ class ZoomViewer:
         self.screen = pygame.display.set_mode(flags=flags)
         pygame.display.set_caption("Powers of Ten Viewer")
         
-        self.viewport_dims = (self.screen.get_height(), self.screen.get_height())
-        self.viewport_rect = pygame.Rect((self.screen.get_width() - self.viewport_dims[0])//2, 0, *self.viewport_dims)
+        self.viewport_dims = (1400,980)
+        self.viewport_rect = pygame.Rect(50,50, *self.viewport_dims)
         
         # Font setup
         self.font = pygame.font.SysFont('Arial', 16)
@@ -125,6 +125,7 @@ class ZoomViewer:
                 self.zoom_controller.reset_to_min()
         
         self.perf_stats['update'] = pygame.time.get_ticks() - update_start
+        return transition_complete
     
     def _render_frame(self):
         """Render current frame"""

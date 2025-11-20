@@ -4,7 +4,7 @@
     {
       "id": "img1",
       "src": "sample photos/img1.jpg",
-      "bg": "sample bg/bg1.jpg",
+      "bg": "sample bg/bg1.png",
       "caption": "Description for Image 1",
       "nextPixelRect": [
         1949,
@@ -25,7 +25,7 @@
         340
       ],
       "transitionFolder": "sample transitions/2",
-      "bg": "sample bg/bg2.jpg",
+      "bg": "sample bg/bg2.png",
       "outlineColor": "#ff0000ff"
     },
     {
@@ -38,7 +38,7 @@
       ],
       "src": "sample photos/img3.png",
       "caption": "Description for Image 3",
-      "bg": "sample bg/bg3.jpg",
+      "bg": "sample bg/bg3.png",
       "outlineColor": "#000000ff",
       "transitionFolder": "sample transitions/3"
     },
@@ -46,7 +46,7 @@
       "id": "img4",
       "src": "sample photos/img4.png",
       "caption": "Description for Image 4",
-      "bg": "sample bg/bg4.jpg",
+      "bg": "sample bg/bg4.png",
       "outlineColor": "#000000ff"
     }
   ]

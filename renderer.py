@@ -125,7 +125,7 @@ class Renderer:
             # Low zoom: simple scaling
             target_width = max(1, int(img_surface.get_width() * scale))
             target_height = max(1, int(img_surface.get_height() * scale))
-            image_scaled = pygame.transform.scale(img_surface, (target_width, target_height))
+            image_scaled = pygame.transform.smoothscale(img_surface, (target_width, target_height))
             return image_scaled, image_pos_x, image_pos_y
         else:
             # High zoom: crop then scale for performance
@@ -167,7 +167,7 @@ class Renderer:
             # Fallback
             target_width = max(1, int(img_surface.get_width() * scale))
             target_height = max(1, int(img_surface.get_height() * scale))
-            image_scaled = pygame.transform.scale(img_surface, (target_width, target_height))
+            image_scaled = pygame.transform.smoothscale(img_surface, (target_width, target_height))
             return image_scaled, image_pos_x, image_pos_y
     
     def _draw_instructions(self):

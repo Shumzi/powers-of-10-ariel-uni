@@ -10,13 +10,14 @@ import platform
 pygame.init()
 
 # Screen setup
-WIDTH, HEIGHT = 800, 600
-screen = pygame.display.set_mode((WIDTH, HEIGHT))
+
+screen = pygame.display.set_mode(flags=pygame.FULLSCREEN)
+WIDTH, HEIGHT = screen.get_size()
 pygame.display.set_caption("Video Scrubber")
 
 # Video paths
-video_path = "/tmp/non-optimized_mjpeg.avi"
-reversed_video_path = "/tmp/non-optimized_reversed_mjpeg.avi"
+video_path = "sample transitions/2.mp4"
+reversed_video_path = "sample transitions/2r.mp4"
 
 # Create reversed video if it doesn't exist
 if not os.path.exists(reversed_video_path):
@@ -24,7 +25,7 @@ if not os.path.exists(reversed_video_path):
     subprocess.run([
         'ffmpeg', '-i', video_path,
         '-vf', 'reverse',
-        '-af', 'areverse',
+        '-c:v', 'mpeg4',
         reversed_video_path
     ])
     print("Reversed video created!")
@@ -32,52 +33,12 @@ if not os.path.exists(reversed_video_path):
 # OpenCV video setup
 print("Loading videos...")
 
-# Try GStreamer on Linux/Pi for hardware acceleration, fallback to default
-use_gstreamer = platform.system() == 'Linux'
+print("Using default OpenCV backend...")
+cap_forward = cv2.VideoCapture(video_path)
+cap_backward = cv2.VideoCapture(reversed_video_path)
 
-if use_gstreamer:
-    print("Attempting GStreamer hardware acceleration...")
-    # Convert Windows-style paths to Linux if needed
-    forward_path = video_path.replace('\\', '/')
-    backward_path = reversed_video_path.replace('\\', '/')
-    
-    # GStreamer pipeline for MJPEG
-    gst_forward = (
-        f'filesrc location="{forward_path}" ! '
-        'avidemux ! jpegdec ! videoconvert ! appsink'
-    )
-    gst_backward = (
-        f'filesrc location="{backward_path}" ! '
-        'avidemux ! jpegdec ! videoconvert ! appsink'
-    )
-    
-    cap_forward = cv2.VideoCapture(gst_forward, cv2.CAP_GSTREAMER)
-    cap_backward = cv2.VideoCapture(gst_backward, cv2.CAP_GSTREAMER)
-    
-    # Check if GStreamer worked
-    if cap_forward.isOpened() and cap_backward.isOpened():
-        # Verify we can actually get properties
-        test_fps = cap_forward.get(cv2.CAP_PROP_FPS)
-        test_frames = cap_forward.get(cv2.CAP_PROP_FRAME_COUNT)
-        if test_fps > 0 and test_frames > 0:
-            print("✓ GStreamer hardware acceleration enabled")
-        else:
-            print("⚠ GStreamer opened but can't read properties, falling back...")
-            use_gstreamer = False
-            cap_forward.release()
-            cap_backward.release()
-    else:
-        print("⚠ GStreamer failed to open, falling back to default backend")
-        use_gstreamer = False
-        cap_forward.release()
-        cap_backward.release()
-
-# Fallback to default backend
-if not use_gstreamer:
-    print("Using default OpenCV backend...")
-    cap_forward = cv2.VideoCapture(video_path)
-    cap_backward = cv2.VideoCapture(reversed_video_path)
-
+caps = {'forward': cap_forward, 'backward': cap_backward}
+current_dir = 'forward'
 # Verify videos opened successfully
 if not cap_forward.isOpened():
     print(f"ERROR: Could not open forward video: {video_path}")
@@ -123,11 +84,14 @@ while running:
         if event.type == pygame.QUIT:
             running = False
         elif event.type == pygame.KEYDOWN:
+            # if event.key in [pygame.K_UP, pygame.K_DOWN]:
             if event.key == pygame.K_UP:
                 # Start timing
+                # action = 'forward' if event.key == pygame.K_UP else 'backward'
                 t_start = time.perf_counter()
-                timing = {'action': 'UP_KEY_PRESS', 'stages': {}}
+                timing = {'action': f'UP_KEY_PRESS', 'stages': {}}
                 
+
                 # Switch to forward playback
                 if not is_playing_forward:
                     is_playing_forward = True
