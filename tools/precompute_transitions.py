@@ -1,6 +1,6 @@
 """Precompute transition frames to match the current viewport dimensions.
 
-This script scans all transition folders declared in config.json and ensures that
+This script scans all transition folders declared in photo_list.json and ensures that
 scaled copies of every frame exist at the viewport size. Original frames are
 preserved inside an "original_scale" subdirectory.
 """
@@ -22,8 +22,8 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Precompute scaled transition frames")
     parser.add_argument(
         "--config",
-        default="config.json",
-        help="Path to the configuration file describing transition folders (default: config.json)",
+        default="photo_list.json",
+        help="Path to the configuration file describing transition folders (default: photo_list.json)",
     )
     parser.add_argument(
         "--width",

@@ -15,7 +15,7 @@ class CropAlignmentTool:
         pygame.init()
         
         # Create temporary display to enable image loading
-        temp_screen = pygame.display.set_mode((100, 100))
+        temp_screen = pygame.display.set_mode((1400,980))
         
         # Load images
         self.base_image = pygame.image.load(base_image_path).convert()
@@ -705,10 +705,12 @@ def generate_morph_sequence_standalone(cropped_filename, zoomed_filename, output
     # Check common Windows installation locations
     if not gmic_exe:
         common_paths = [
+            r"./gmic.exe",
             r"C:\Program Files\gmic\gmic.exe",
             r"C:\Program Files (x86)\gmic\gmic.exe",
             os.path.expanduser(r"~\AppData\Local\gmic\gmic.exe"),
             r"C:\gmic\gmic.exe"
+
         ]
         for path in common_paths:
             if os.path.exists(path):
