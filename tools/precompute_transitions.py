@@ -1,6 +1,6 @@
 """Precompute transition frames to match the current viewport dimensions.
 
-This script scans all transition folders declared in photo_list.json and ensures that
+This script scans all transition folders declared in config.json and ensures that
 scaled copies of every frame exist at the viewport size. Original frames are
 preserved inside an "original_scale" subdirectory.
 """
@@ -22,8 +22,8 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Precompute scaled transition frames")
     parser.add_argument(
         "--config",
-        default="photo_list.json",
-        help="Path to the configuration file describing transition folders (default: photo_list.json)",
+        default="config.json",
+        help="Path to the configuration file describing transition folders (default: config.json)",
     )
     parser.add_argument(
         "--width",
@@ -124,8 +124,8 @@ def ensure_scaled_frame(
 def process_transition_folder(
     folder: str,
     viewport: Tuple[int, int],
-    index: int,
     force: bool,
+    index: int = 0,
 ) -> Dict[str, int]:
     stats = {"frames": 0, "rescaled": 0, "skipped": 0, "moved": 0}
 
@@ -176,7 +176,7 @@ def main() -> int:
         folder = image_cfg.get("transitionFolder")
         if not folder:
             continue
-        stats = process_transition_folder(folder, viewport, idx, args.force)
+        stats = process_transition_folder(folder, viewport, args.force, idx)
         total_stats["folders"] += 1
         total_stats["frames"] += stats["frames"]
         total_stats["rescaled"] += stats["rescaled"]

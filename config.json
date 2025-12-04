@@ -1,3 +1,64 @@
 {
-  "video_player_file": ""
+  "setup": {
+  "viewportDims": [
+    1398,
+    978
+    ],
+  "viewportTL": [
+    51,
+    51
+    ]
+  },
+  "defaultOutlineColor": "#00ff88",
+  "images": [
+    {
+      "id": "img1",
+      "src": "data/photos/img1.png",
+      "bg": "data/bg/bg1.png",
+      "caption": "Description for Image 1",
+      "nextPixelRect": [
+        1000,
+        1000,
+        360,
+        360
+      ],
+      "transitionFolder": "data/transitions/1"
+    },
+    {
+      "id": "img2",
+      "src": "data/photos/img2.jpg",
+      "caption": "Description for Image 2",
+      "nextPixelRect": [
+        2000,
+        2000,
+        340,
+        340
+      ],
+      "bg": "data/bg/bg2.png",
+      "outlineColor": "#ff0000ff",
+      "transitionFolder": "data/transitions/1"
+    },
+    {
+      "id": "img3",
+      "nextPixelRect": [
+        3000,
+        3000,
+        62,
+        54
+      ],
+      "src": "data/photos/img3.jpg",
+      "caption": "Description for Image 3",
+      "bg": "data/bg/bg3.png",
+      "outlineColor": "#000000ff",
+      "transitionFolder": "data/transitions/1"
+    },
+    {
+      "id": "img4",
+      "src": "data/photos/img4.jpg",
+      "caption": "Description for Image 4",
+      "bg": "data/bg/bg4.png",
+      "outlineColor": "#000000ff"
+    }
+  ]
+
 }

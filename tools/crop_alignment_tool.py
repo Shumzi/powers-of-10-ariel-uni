@@ -6,16 +6,18 @@ import pygame
 import sys
 import json
 import os
-
+from .precompute_transitions import process_transition_folder
 
 class CropAlignmentTool:
     """Interactive crop selection and alignment tool"""
     
-    def __init__(self, base_image_path, zoomed_image_path):
+    def __init__(self, base_image_path, zoomed_image_path, config_path="config.json"):
         pygame.init()
+        self.config = json.load(open(config_path, 'r', encoding='utf-8'))
         
-        # Create temporary display to enable image loading
-        temp_screen = pygame.display.set_mode((1400,980))
+        # Window setup
+        self.screen = pygame.display.set_mode(self.config['setup']['viewportDims'])
+        pygame.display.set_caption("Crop Alignment Tool")
         
         # Load images
         self.base_image = pygame.image.load(base_image_path).convert()
@@ -23,12 +25,6 @@ class CropAlignmentTool:
         
         # Calculate aspect ratio from zoomed image
         self.aspect_ratio = self.zoomed_image.get_width() / self.zoomed_image.get_height()
-        
-        # Window setup
-        self.width = 1400
-        self.height = 900
-        self.screen = pygame.display.set_mode((self.width, self.height))
-        pygame.display.set_caption("Crop Alignment Tool")
         
         # Fonts
         self.font = pygame.font.SysFont('Arial', 14)
@@ -481,7 +477,14 @@ class CropAlignmentTool:
         
         # Generate morph sequence using GMIC
         generate_morph_sequence_standalone(cropped_filename, zoomed_filename, output_folder)
-    
+
+        # rescale transition frames to viewport dimensions
+        print("Rescaling transition frames to viewport dimensions...")
+        pygame.init()
+        pygame.display.set_mode((1,1))  # Minimal display to enable image operations
+        process_transition_folder(output_folder,
+                                  self.config['setup']['viewportDims'],
+                                  force=False)
 
     
     def run(self):
@@ -490,8 +493,9 @@ class CropAlignmentTool:
         
         while running:
             running = self.handle_events()
-            self.draw()
-            self.clock.tick(60)
+            if running:
+                self.draw()
+                self.clock.tick(60)
         
         # Only quit if we didn't save (save_crop calls pygame.quit())
         if pygame.get_init():

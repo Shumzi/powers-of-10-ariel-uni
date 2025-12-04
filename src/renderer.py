@@ -15,7 +15,7 @@ class Renderer:
         self.font = font
         self.small_font = pygame.font.SysFont('Consolas', 12)
     
-    def draw_frame(self, image_manager, zoom_controller, transition_manager, fps=0, debug_mode=False, perf_stats=None, avg_frame_time=0):
+    def draw_frame(self, image_manager, zoom_controller, transition_manager):
         """Draw the complete frame"""
         current_img = image_manager.get_current_image()
         

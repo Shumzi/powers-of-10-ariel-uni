@@ -38,9 +38,9 @@ class TransitionManager:
                 self.transitions.append(frames)
             else:
                 # No transition for this image - add empty list
-                # self.transitions.append([])
+                self.transitions.append([])
                 if i < len(self.config['images']) - 1:  # Not last image
-                    print(f"Warning: No transition folder for image {i}")
+                    print(f"Warning: No transition folder for image {i}. loading empty transition.")
         
         print(f"Loaded {len(self.transitions)} transition sets")
     
@@ -86,18 +86,19 @@ class TransitionManager:
             idx = self.transition_idx - 1
         
         # Get the transition frames
+
         self.current_transition_frames = self.transitions[idx]
-        
-        # Only start transition if we have frames
-        if len(self.current_transition_frames) > 0:
-            self.is_transitioning = True
-            self.transition_frame_index = 0
-            self.transition_start_time = pygame.time.get_ticks()
-            self.transition_direction = direction
+        self.is_transitioning = True
+        self.transition_frame_index = 0
+        self.transition_start_time = pygame.time.get_ticks()
+        self.transition_direction = direction
     
     def update(self):
-        """Update transition animation and return completion status"""
-        if not self.is_transitioning or len(self.current_transition_frames) == 0:
+        """
+        Update transition animation and return completion status
+        if no transition folder exists, will complete immediately.
+        """
+        if not self.is_transitioning:
             return False
         
         current_time = pygame.time.get_ticks()
@@ -107,7 +108,7 @@ class TransitionManager:
         frame_duration = 1000 / self.transition_fps
         target_frame = int(elapsed / frame_duration)
         
-        if target_frame >= len(self.current_transition_frames):
+        if target_frame >= len(self.current_transition_frames): # complete if done or no frames (i.e. cuurrent_transition_frames is len 0)
             # Transition complete - move position
             self.is_transitioning = False
             if self.transition_direction == 'forward':
