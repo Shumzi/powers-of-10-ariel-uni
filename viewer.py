@@ -1,228 +1,179 @@
-import tkinter as tk
-from tkinter import ttk
-from PIL import Image, ImageTk
+"""
+Powers of Ten Viewer - Refactored version with proper separation of concerns
+Main application that coordinates all components
+"""
+import pygame
 import json
-import os
-import math
+from image_manager import ImageManager
+from zoom_controller import ZoomController
+from transition_manager import TransitionManager
+from renderer import Renderer
+from input_handler import InputHandler
 
-def ease_out_cubic(x):
-    return 1 - pow(1 - x, 3)
 
-def ease_in_out_cubic(x):
-    if x < 0.5:
-        return 4 * x * x * x
-    return 1 - pow(-2 * x + 2, 3) / 2
-
-class ZoomViewer(tk.Tk):
+class ZoomViewer:
+    """Main application coordinator"""
+    
     def __init__(self):
-        super().__init__()
-
-        self.title("Powers of Ten Viewer")
-        self.configure(bg='#111111')
+        pygame.init()
         
-        # Animation properties
-        self.animation_duration = 300  # milliseconds
-        self.animation_frame_rate = 60  # fps
-        self.frame_duration = int(1000 / self.animation_frame_rate)  # milliseconds per frame
-        self.target_scale = 1.0
-        self.start_scale = 1.0
-        self.animation_start_time = None
-        self.is_animating = False
-        self.next_frame_id = None  # For canceling animation frames
-
+        # Display setup
+        flags = pygame.FULLSCREEN
+        self.screen = pygame.display.set_mode(flags=flags)
+        pygame.display.set_caption("Powers of Ten Viewer")
+        
+        self.viewport_dims = (1400,980)
+        self.viewport_rect = pygame.Rect(50,50, *self.viewport_dims)
+        
+        # Font setup
+        self.font = pygame.font.SysFont('Arial', 16)
+        
         # Load configuration
         with open('config.json', 'r', encoding='utf-8') as f:
-            try:
-                self.config = json.load(f)
-            except json.JSONDecodeError as e:
-                print("Error parsing JSON. Processed text:")
-                print(f)
-                print("\nError details:", str(e))
-                raise
-
-        # Initialize variables
-        self.current_index = 0
-        self.scale = 1.0
-        self.zoom_step = 0.05
-        self.min_scale = 1.0
-        self.max_scale = 2.0
-
-        # Setup the main container
-        self.container = ttk.Frame(self)
-        self.container.pack(padx=20, pady=20)
-        self.window_side_length = 840
-        # Create and configure the image display
-        self.canvas = tk.Canvas(
-            self.container,
-            width=self.window_side_length,
-            height=self.window_side_length,
-            bg='#111111',
-            highlightbackground='#333333',
-            highlightthickness=1
+            self.config = json.load(f)
+        
+        # Initialize components
+        self.image_manager = ImageManager(self.config, self.viewport_dims)
+        self.image_manager.load_images()
+        
+        self.zoom_controller = ZoomController()
+        # Set initial max scale
+        self.zoom_controller.set_max_scale(
+            self.image_manager.get_current_image().max_scale
         )
-        self.canvas.pack()
-
-        # Caption label
-        self.caption = ttk.Label(
-            self.container,
-            text="",
-            foreground='#eeeeee',
-            background='#111111',
-            wraplength=600,
-            justify='center'
-        )
-        self.caption.pack(pady=10)
-
-        # Instructions label
-        ttk.Label(
-            self.container,
-            text="⬆ Zoom In    ⬇ Zoom Out",
-            foreground='#999999',
-            background='#111111'
-        ).pack()
-
-        # Bind keyboard events
-        self.bind('<Up>', self.zoom_in)
-        self.bind('<Down>', self.zoom_out)
-
-        # Load images
-        self.images = []
-        self.photo_images = []  # Keep reference to prevent garbage collection
-        self.load_images()
-
-        # Initial display
-        self.update_display()
-
-    def load_images(self):
-        for img_config in self.config['images']:
-            # Load image from file
-            image_path = img_config['src']
-            if image_path.startswith('http'):
-                # For the example, you'll need to have local copies of the images
-                # You might want to implement downloading or use local paths instead
-                image_path = f"sample photos/{os.path.basename(image_path)}"
-            
-            image = Image.open(image_path)
-            # Resize to fit canvas while maintaining aspect ratio
-            image.thumbnail((self.window_side_length, self.window_side_length), Image.Resampling.LANCZOS)
-            photo = ImageTk.PhotoImage(image)
-            
-            self.images.append({
-                'config': img_config,
-                'image': image,
-                'photo': photo
-            })
-
-    def get_rect(self, img_config):
-        if 'nextPixelRect' in img_config:
-            px, py, pw, ph = img_config['nextPixelRect']
-            img = self.images[self.current_index]['image']
-            return [px/img.width, py/img.height, pw/img.width, ph/img.height]
-        return img_config.get('nextRect')
-
-    def update_display(self):
-        self.canvas.delete('all')
         
-        current = self.images[self.current_index]
-        img_config = current['config']
-        rect = self.get_rect(img_config)
+        self.transition_manager = TransitionManager(self.config, self.viewport_dims)
+        self.transition_manager.load_all_transitions()
         
-        # Get the original image dimensions
-        img_width = current['photo'].width()
-        img_height = current['photo'].height()
+        self.renderer = Renderer(self.screen, self.viewport_dims, self.viewport_rect, self.font)
         
-        # Calculate zoom transform
-        if rect and self.scale > 1.0:
-            # Calculate center of the target rectangle
-            cx = rect[0] + rect[2]/2
-            cy = rect[1] + rect[3]/2
-            
-            # Calculate how much we've zoomed between min_scale and max_scale
-            zoom_progress = (self.scale - self.min_scale) / (self.max_scale - self.min_scale)
-            
-            # Interpolate between original position and zoomed position
-            target_x = cx * img_width
-            target_y = cy * img_height
-            current_x = img_width/2 + (target_x - img_width/2) * zoom_progress
-            current_y = img_height/2 + (target_y - img_height/2) * zoom_progress
-            
-            # Calculate the scaled dimensions
-            scaled_width = img_width * self.scale
-            scaled_height = img_height * self.scale
-            
-            # Calculate position to center the zoomed part
-            x = 300 - current_x * self.scale
-            y = 300 - current_y * self.scale
+        self.input_handler = InputHandler()
+        
+        # Clock for frame rate control
+        self.clock = pygame.time.Clock()
+        self.FPS = 60
+        
+        # Performance monitoring
+        self.debug_mode = False
+        self.frame_times = []
+        self.max_frame_samples = 60
+        self.perf_stats = {
+            'input': 0,
+            'update': 0,
+            'render': 0,
+            'total': 0
+        }
+    
+    def _handle_input(self, dt):
+        """Process input events and handle actions"""
+        input_start = pygame.time.get_ticks()
+        actions = self.input_handler.process_events(self.transition_manager.is_active(), dt)
+        
+        for action in actions:
+            if action[0] == 'quit':
+                return False  # Signal to stop running
+            elif action[0] == 'zoom_step':
+                self.zoom_controller.zoom_step(action[1])
+            elif action[0] == 'zoom_continuous':
+                self.zoom_controller.zoom_continuous(action[1], action[2])  # direction, dt
+            elif action[0] == 'toggle_debug':
+                self.debug_mode = not self.debug_mode 
+                print(f"Debug mode: {'ON' if self.debug_mode else 'OFF'}")
+        
+        self.perf_stats['input'] = pygame.time.get_ticks() - input_start
+        return True  # Continue running
+    
+    def _handle_boundary_transition(self, boundary_direction):
+        """Handle zoom boundary crossing and image transitions"""
+        # Check if we can navigate in the boundary direction
+        if boundary_direction == 'forward':
+            can_transition = self.image_manager.can_go_next()
+        else:  # 'backward'
+            can_transition = self.image_manager.can_go_previous()
+        
+        if can_transition:
+            # Start the transition animation
+            self.transition_manager.start_transition(boundary_direction)
         else:
-            # No zoom, just center the image
-            x = 300 - img_width/2
-            y = 300 - img_height/2
-            scaled_width = img_width
-            scaled_height = img_height
-
-        # Create a new resized image for the current zoom level
-        scaled_image = current['image'].resize(
-            (int(scaled_width), int(scaled_height)),
-            Image.Resampling.LANCZOS
-        )
-        current['scaled_photo'] = ImageTk.PhotoImage(scaled_image)
+            # Can't transition - clamp scale to boundaries
+            self.zoom_controller.clamp_scale()
+    
+    def _update_state(self):
+        """Update zoom and transition state"""
+        update_start = pygame.time.get_ticks()
         
-        # Display the scaled image
-        self.canvas.create_image(
-            x + scaled_width/2,
-            y + scaled_height/2,
-            image=current['scaled_photo']
-        )
+        # Update zoom state and check boundaries
+        boundary_direction = self.zoom_controller.update()
+        if boundary_direction:
+            self._handle_boundary_transition(boundary_direction)
         
-        # Draw outline if rect exists
-        if rect:
-            # Use image-specific outline color or fall back to default from config
-            default_color = self.config.get('defaultOutlineColor')  # Fallback to original green if not specified
-            outline_color = img_config.get('outlineColor', default_color)
+        # Update transition animation
+        transition_complete = self.transition_manager.update()
+        if transition_complete:
+            # Transition just finished - sync image manager to match transition manager position
+            self.image_manager.set_image(self.transition_manager.transition_idx)
             
-            # Convert 8-digit hex (#RRGGBBAA) to tkinter-compatible color
-            if len(outline_color) > 7:  # If color includes alpha channel
-                outline_color = outline_color[:7]  # Take only RGB part
-            
-            rx, ry, rw, rh = rect
-            
-            # Scale and position the outline
-            outline_x = x + rx * scaled_width
-            outline_y = y + ry * scaled_height
-            outline_w = rw * scaled_width
-            outline_h = rh * scaled_height
-            
-            self.canvas.create_rectangle(
-                outline_x, outline_y,
-                outline_x + outline_w,
-                outline_y + outline_h,
-                outline=outline_color,
-                width=2
+            # Update max scale for new image
+            self.zoom_controller.set_max_scale(
+                self.image_manager.get_current_image().max_scale
             )
+            
+            # Reset zoom to appropriate level based on direction
+            if self.transition_manager.transition_direction == 'backward':
+                self.zoom_controller.reset_to_max()
+            else:
+                self.zoom_controller.reset_to_min()
         
-        # Update caption
-        self.caption.config(text=img_config['caption'])
+        self.perf_stats['update'] = pygame.time.get_ticks() - update_start
+        return transition_complete
+    
+    def _render_frame(self):
+        """Render current frame"""
+        render_start = pygame.time.get_ticks()
+        fps = self.clock.get_fps()
+        avg_frame_time = sum(self.frame_times) / len(self.frame_times) if self.frame_times else 0
+        self.renderer.draw_frame(
+            self.image_manager, self.zoom_controller, self.transition_manager, 
+            fps, self.debug_mode, self.perf_stats, avg_frame_time
+        )
+        self.perf_stats['render'] = pygame.time.get_ticks() - render_start
+    
+    def _track_performance(self, frame_start):
+        """Track frame timing for performance monitoring"""
+        frame_time = pygame.time.get_ticks() - frame_start
+        self.perf_stats['total'] = frame_time
+        self.frame_times.append(frame_time)
+        if len(self.frame_times) > self.max_frame_samples:
+            self.frame_times.pop(0)
+    
+    def run(self):
+        """Main game loop"""
+        running = True
+        
+        while running:
+            frame_start = pygame.time.get_ticks()
+            dt = self.clock.get_time() / 1000.0
+            
+            # Process input
+            running = self._handle_input(dt)
+            if not running:
+                break
+            
+            # Update state
+            self._update_state()
+            
+            # Render
+            self._render_frame()
+            
+            # Track performance
+            self._track_performance(frame_start)
+            
+            # Control frame rate
+            self.clock.tick(self.FPS)
+        
+        pygame.quit()
 
-    def zoom_in(self, event=None):
-        self.scale += self.zoom_step
-        if self.scale >= self.max_scale:
-            self.scale = self.max_scale
-            if self.current_index < len(self.images) - 1:
-                self.current_index += 1
-                self.scale = self.min_scale
-        self.update_display()
-
-    def zoom_out(self, event=None):
-        self.scale -= self.zoom_step
-        if self.scale <= self.min_scale:
-            self.scale = self.min_scale
-            if self.current_index > 0:
-                self.current_index -= 1
-                self.scale = self.max_scale
-        self.update_display()
 
 if __name__ == "__main__":
-    app = ZoomViewer()
-    # Set window to dark theme
-    app.tk_setPalette(background='#111111', foreground='#eeeeee')
-    app.mainloop()
+    viewer = ZoomViewer()
+    viewer.run()
