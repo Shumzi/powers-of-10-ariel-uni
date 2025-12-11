@@ -89,6 +89,12 @@
       ],
       "transitionFolder": "data/transitions/6",
       "bg": "data/bg/bg6.png"
+    },
+    {
+      "id": "img7",
+      "src": "data/photos/ariel 08.JPG",
+      "caption": "Description for Image 7",
+      "bg": "data/bg/bg7.png"
     }
   ]
 }

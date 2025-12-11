@@ -54,7 +54,7 @@ class TransitionManager:
         
         # Filter for only frame_* files (e.g., frame_0001.png, frame_0002.png)
         frame_files = sorted([f for f in os.listdir(transition_folder) 
-                             if f.startswith('frame_') and f.endswith('.png')])
+                             if f.startswith('frame_')])
         
         if not frame_files:
             print(f"Warning: No frame_* files found in {transition_folder}")
