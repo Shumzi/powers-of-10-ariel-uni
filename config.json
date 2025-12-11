@@ -13,52 +13,82 @@
   "images": [
     {
       "id": "img1",
-      "src": "data/photos/img1.png",
+      "src": "data/photos/ariel 01.jpg",
       "bg": "data/bg/bg1.png",
       "caption": "Description for Image 1",
       "nextPixelRect": [
-        1000,
-        1000,
-        360,
-        360
+        1958,
+        1395,
+        405,
+        283
       ],
       "transitionFolder": "data/transitions/1"
     },
     {
       "id": "img2",
-      "src": "data/photos/img2.jpg",
+      "src": "data/photos/ariel 02.gif",
       "caption": "Description for Image 2",
       "nextPixelRect": [
-        2000,
-        2000,
-        340,
-        340
+        368,
+        251,
+        130,
+        91
       ],
       "bg": "data/bg/bg2.png",
       "outlineColor": "#ff0000ff",
-      "transitionFolder": "data/transitions/1"
+      "transitionFolder": "data/transitions/2"
     },
     {
       "id": "img3",
-      "nextPixelRect": [
-        3000,
-        3000,
-        62,
-        54
-      ],
-      "src": "data/photos/img3.jpg",
+      "src": "data/photos/ariel 03.jpg",
       "caption": "Description for Image 3",
-      "bg": "data/bg/bg3.png",
-      "outlineColor": "#000000ff",
-      "transitionFolder": "data/transitions/1"
+      "nextPixelRect": [
+        1930,
+        1548,
+        661,
+        463
+      ],
+      "transitionFolder": "data/transitions/3",
+      "bg": "data/bg/bg3.png"
     },
     {
       "id": "img4",
-      "src": "data/photos/img4.jpg",
+      "src": "data/photos/ariel 04.jpg",
       "caption": "Description for Image 4",
-      "bg": "data/bg/bg4.png",
-      "outlineColor": "#000000ff"
+      "nextPixelRect": [
+        3591,
+        3700,
+        869,
+        609
+      ],
+      "transitionFolder": "data/transitions/4",
+      "bg": "data/bg/bg4.png"
+    },
+    {
+      "id": "img5",
+      "src": "data/photos/ariel 05.jpg",
+      "caption": "greater solar area",
+      "nextPixelRect": [
+        804,
+        798,
+        150,
+        105
+      ],
+      "transitionFolder": "data/transitions/5",
+      "bg": "data/bg/bg5.png"
+    },
+    {
+      "id": "img6",
+      "src": "data/photos/ariel 06.png",
+      "caption": "solar system",
+      "nextPixelRect": [
+        1201,
+        1059,
+        241,
+        168
+      ],
+      "transitionFolder": "data/transitions/6",
+      "bg": "data/bg/bg6.png"
     }
   ]
-
 }

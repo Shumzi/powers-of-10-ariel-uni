@@ -23,4 +23,5 @@ if (-not $ImagesFolder) {
 Write-Host "Using folder: $ImagesFolder"
 
 # Call the Python script; adjust 'python' path if needed
-python "add_black_bars_to_images.py" "$ImagesFolder" "$ConfigPath" "$Color"
+cd ..
+python "tools/add_black_bars_to_images.py" "$ImagesFolder" "$ConfigPath" "$Color"

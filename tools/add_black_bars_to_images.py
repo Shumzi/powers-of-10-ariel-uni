@@ -68,22 +68,31 @@ def choose_folder_gui() -> Path | None:
 
 if __name__ == "__main__":
 
-    if len(sys.argv) < 2:
-        print("Usage: python add_black_bars_to_images.py <config.json> [<folder_with_images>] [<R,G,B>]")
-        sys.exit(1)
-
-    config_path = sys.argv[1]
-    if len(sys.argv) >= 3:
-        folder = sys.argv[2]
+    config_path = "config.json"
+    bg = (0, 0, 0)
+    
+    # Parse arguments according to: <folder_with_images> [<config.json>] [<R,G,B>]
+    if len(sys.argv) >= 2:
+        folder = sys.argv[1]
     else:
         folder_path = choose_folder_gui()
         if folder_path is None:
             print("No folder selected, exiting.")
             sys.exit(0)
         folder = folder_path
-    if len(sys.argv) >= 4:
-        bg = tuple(map(int, sys.argv[3].split(",")))
-    else:
-        bg = (0, 0, 0)
+    
+    # Parse optional arguments
+    if len(sys.argv) >= 3:
+        arg2 = sys.argv[2]
+        # Check if second argument is RGB values (contains comma)
+        if ',' in arg2:
+            # It's RGB values: R,G,B
+            bg = tuple(map(int, arg2.split(",")))
+        else:
+            # It's config.json path
+            config_path = arg2
+            # Third argument might be RGB
+            if len(sys.argv) >= 4:
+                bg = tuple(map(int, sys.argv[3].split(",")))
 
     process_folder(folder, config_path, bg)
